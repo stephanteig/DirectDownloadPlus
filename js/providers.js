@@ -211,7 +211,7 @@ function classifyProviderError(raw) {
   if (/private|login required|sign in|authentication/i.test(text)) return "authentication-required";
   if (/expired|signature|signed url|url.*expir|token.*expir|(^|[^0-9])403([^0-9]|$)/i.test(text)) return "expired-url";
   if (/forbidden|blocked|denied/i.test(text)) return "source-blocked";
-  if (/ffmpeg.*(not found|missing)|no such file.*ffmpeg/i.test(text)) return "ffmpeg-missing";
+  if (/ffmpeg.*(not found|missing)|no such file.*ffmpeg|spawn.*ffmpeg.*enoent/i.test(text)) return "ffmpeg-missing";
   return "provider-failed";
 }
 
