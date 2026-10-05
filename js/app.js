@@ -2667,7 +2667,9 @@ async function analisar(jaSei) {
   } else {
     const t0 = Date.now();
     info = await motor.consulta(url);
-    log("consulta: " + (Date.now() - t0) + " ms");
+    log("consulta: " + (Date.now() - t0) + " ms" +
+      (info && info.provider ? " provider=" + info.provider : "") +
+      (info && info.doCache ? " cache=hit" : " cache=miss"));
   }
   /* O ERRO INTEIRO VAI PARA O LOG, e não só a linha que cabe na tela.  (2.0.0)
 
