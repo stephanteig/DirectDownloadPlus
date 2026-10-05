@@ -215,6 +215,20 @@ function classifyProviderError(raw) {
   return "provider-failed";
 }
 
+function providerErrorMessage(type) {
+  return {
+    "active-livestream": "aktiv livestream støttes ikke",
+    "authentication-required": "innlogging kreves eller videoen er privat",
+    "source-blocked": "nettstedet blokkerte forespørselen",
+    "expired-url": "medielenken har utløpt og må hentes på nytt",
+    "ffmpeg-missing": "FFmpeg mangler eller kunne ikke startes",
+    "collection-detected": "lenken inneholder en samling; velg ett element",
+    "incomplete-metadata": "yt-dlp returnerte ufullstendige metadata",
+    "invalid-url": "lenken er ikke en gyldig HTTP- eller HTTPS-URL",
+    "provider-failed": "provider klarte ikke å hente mediekilden",
+  }[String(type || "")] || "";
+}
+
 module.exports = {
   DIRECT_EXTENSIONS,
   MIME_EXTENSIONS,
@@ -233,4 +247,5 @@ module.exports = {
   YTDLPProvider,
   ProviderResolver,
   classifyProviderError,
+  providerErrorMessage,
 };
