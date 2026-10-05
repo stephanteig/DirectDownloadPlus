@@ -95,10 +95,14 @@ function normalizeYTDLP(json, sourceUrl) {
   const formats = rawFormats.map((f) => ({
     id: f.format_id || "",
     ext: f.ext || "",
+    protocol: f.protocol || "",
+    quality: Number(f.quality) || 0,
+    fps: Number(f.fps) || 0,
     height: Number(f.height) || 0,
     width: Number(f.width) || 0,
     acodec: f.acodec || "",
     vcodec: f.vcodec || "",
+    formatNote: f.format_note || "",
     filesize: Number(f.filesize || f.filesize_approx) || 0,
   }));
   return {
