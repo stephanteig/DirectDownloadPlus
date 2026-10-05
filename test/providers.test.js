@@ -32,15 +32,19 @@ assert.strictEqual(resolver.resolve("https://www.youtube.com/watch?v=x").constru
 
 const reel = p.normalizeYTDLP({
   id: "reel", title: "Reel", uploader: "creator", duration: 0,
-  requested_formats: [{ duration: 17 }], formats: [{ height: 1080, ext: "mp4", protocol: "https", fps: 30, format_note: "1080p" }],
+  requested_formats: [{ duration: 17 }], formats: [
+    { height: 720, ext: "mp4", vcodec: "avc1", acodec: "mp4a", quality: 5 },
+    { height: 1080, ext: "mp4", protocol: "https", fps: 30, vcodec: "avc1", acodec: "mp4a", quality: 8, format_note: "1080p" },
+  ],
 }, "https://www.instagram.com/reels/example/");
 assert.strictEqual(reel.provider, "yt-dlp");
 assert.strictEqual(reel.duration, 17);
 assert.strictEqual(reel.kind, "video");
 assert.strictEqual(reel.capabilities.supportsTrim, true);
-assert.strictEqual(reel.formats[0].protocol, "https");
-assert.strictEqual(reel.formats[0].fps, 30);
-assert.strictEqual(reel.formats[0].formatNote, "1080p");
+assert.strictEqual(reel.formats[1].protocol, "https");
+assert.strictEqual(reel.formats[1].fps, 30);
+assert.strictEqual(reel.formats[1].formatNote, "1080p");
+assert.strictEqual(p.chooseFormat(reel, "video").height, 1080);
 assert.strictEqual(p.supportsFormat(reel, "video"), true);
 assert.strictEqual(p.supportsFormat(reel, "audio"), true);
 

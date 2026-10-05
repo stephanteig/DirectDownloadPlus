@@ -63,7 +63,16 @@ function chooseFormat(metadata, requested) {
   if (!supportsFormat(metadata, requested)) return null;
   const wanted = String(requested).toLowerCase();
   const formats = Array.isArray(metadata.formats) ? metadata.formats : [];
-  if (["video", "audio"].includes(wanted)) return formats[0] || { id: wanted, ext: wanted };
+  if (wanted === "video") {
+    return formats.filter((item) => item && (item.vcodec || item.height > 0))
+      .sort((a, b) => (b.height - a.height) || (b.quality - a.quality) || (b.fps - a.fps))[0]
+      || formats[0] || { id: wanted, ext: wanted };
+  }
+  if (wanted === "audio") {
+    return formats.filter((item) => item && item.acodec && item.acodec !== "none")
+      .sort((a, b) => (b.quality - a.quality) || (b.filesize - a.filesize))[0]
+      || formats[0] || { id: wanted, ext: wanted };
+  }
   return formats.find((item) => String(item && item.ext || "").toLowerCase() === wanted)
     || { id: wanted, ext: wanted };
 }
