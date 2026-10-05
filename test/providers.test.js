@@ -51,6 +51,8 @@ assert.strictEqual(p.supportsFormat(reel, "audio"), true);
 const collection = p.normalizeYTDLP({ _type: "playlist", title: "Set", entries: [{ id: "1", title: "One" }] }, "https://example.com/list");
 assert.strictEqual(collection.kind, "collection");
 assert.strictEqual(collection.items.length, 1);
+assert.strictEqual(collection.capabilities.supportsCollections, true);
+assert.strictEqual(collection.capabilities.supportsItemSelection, true);
 
 assert.strictEqual(p.classifyProviderError("Sign in to confirm"), "authentication-required");
 assert.strictEqual(p.classifyProviderError("live stream"), "active-livestream");

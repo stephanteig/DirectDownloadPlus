@@ -35,17 +35,18 @@ function extensionOf(value) {
   return dot < 0 ? "" : last.slice(dot + 1).toLowerCase();
 }
 
-function capabilitiesFor(kind, durationKnown) {
+function capabilitiesFor(kind, durationKnown, itemCount = 0) {
   const isVideo = kind === "video";
   const isAudio = kind === "audio";
+  const isCollection = kind === "collection";
   return {
     supportsVideo: isVideo,
     supportsAudio: isVideo || isAudio,
     supportsTrim: !!durationKnown,
-    supportsThumbnail: isVideo,
+    supportsThumbnail: isVideo || isCollection,
     supportsMetadata: true,
-    supportsCollections: false,
-    supportsItemSelection: false,
+    supportsCollections: isCollection,
+    supportsItemSelection: isCollection && itemCount > 0,
   };
 }
 
@@ -124,7 +125,7 @@ function normalizeYTDLP(json, sourceUrl) {
     sourceUrl: String(sourceUrl || j.webpage_url || j.original_url || ""),
     items: entries.map((entry) => normalizeYTDLP(entry, entry.webpage_url || sourceUrl)),
     formats,
-    capabilities: capabilitiesFor(kind, duration > 0),
+    capabilities: capabilitiesFor(kind, duration > 0, entries.length),
     liveStatus: j.live_status || (j.is_live ? "is_live" : "not_live"),
     metadataComplete: !!(j.id || j.title),
   };
