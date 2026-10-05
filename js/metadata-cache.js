@@ -23,16 +23,17 @@ function cacheKey({ provider = "", sourceUrl = "", format = "" } = {}) {
 }
 
 function sanitizeMetadata(metadata = {}) {
-  const value = JSON.parse(JSON.stringify(metadata || {}));
-  if (value.sourceUrl && isSignedMediaUrl(value.sourceUrl)) value.sourceUrl = "";
-  if (Array.isArray(value.formats)) {
-    value.formats = value.formats.map((format) => {
-      const copy = Object.assign({}, format);
-      if (copy.url && isSignedMediaUrl(copy.url)) delete copy.url;
-      return copy;
-    });
-  }
-  return value;
+  const scrub = (value) => {
+    if (Array.isArray(value)) return value.map(scrub);
+    if (!value || typeof value !== "object") return value;
+    const copy = {};
+    for (const [key, item] of Object.entries(value)) {
+      if ((key === "url" || key === "sourceUrl") && isSignedMediaUrl(item)) continue;
+      copy[key] = scrub(item);
+    }
+    return copy;
+  };
+  return scrub(JSON.parse(JSON.stringify(metadata || {})));
 }
 
 class MetadataCache {
