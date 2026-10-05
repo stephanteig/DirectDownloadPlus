@@ -1161,6 +1161,16 @@ async function baixaAudioDireto(audio, id, duracao, aoProgresso) {
   return { ok: true, arquivo: saida, bytes: tam };
 }
 
+async function ffprobeDuracao(arquivo) {
+  const probe = acha("ffprobe");
+  if (!path.isAbsolute(probe) || !arquivo) return 0;
+  const r = await roda(probe, ["-v", "error", "-show_entries", "format=duration",
+    "-of", "default=noprint_wrappers=1:nokey=1", arquivo]);
+  if (r.code !== 0) return 0;
+  const n = Number(String(r.saida || "").trim());
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 /* BUSCAR NO YOUTUBE  (1.8.8)
 
    QUEM BUSCA E O yt-dlp, e nao a API do YouTube. Nao e economia de trabalho,
@@ -1953,7 +1963,7 @@ module.exports = {
      decide o que vai no pedido, e o leProgressoFf decide o que a barra mostra.
      Uma decisao que nenhum teste consegue chamar e uma decisao que ninguem
      conferiu. */
-  baixaAudioDireto, audioDoJson, argsCabecalho, leProgressoFf,
+  baixaAudioDireto, ffprobeDuracao, audioDoJson, argsCabecalho, leProgressoFf,
   providers,
   atualizaMotor, versaoDoMotor, pastaDoUsuario,
   fichaDosBinarios, argsMotorJS, ambiente,

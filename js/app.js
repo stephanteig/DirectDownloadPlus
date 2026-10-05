@@ -2576,6 +2576,17 @@ function progressoFf(duracao) {
    ficar lento e ninguem sabe por que" -- que e exatamente a forma de falhar que
    o log da 2.0.0 existe para acabar. */
 async function pegaAudio(url, info) {
+  if (info && info.direct && info.kind === "audio") {
+    const ext = info.formats && info.formats[0] && info.formats[0].ext || "m4a";
+    const direct = await motor.baixaAudioDireto({ url: info.sourceUrl || url, ext }, info.id,
+                                                info.duracao || 0, progressoFf(info.duracao));
+    if (direct && direct.ok) {
+      log("baixaAudio: rota DIRECT FILE (" + ext + ", " + direct.bytes + " bytes)");
+      return direct;
+    }
+    if (direct && direct.bruto) log("direct-file (bruto): " + direct.bruto);
+    return { ok: false, erro: (direct && direct.erro) || "direct file download failed" };
+  }
   if (info && info.audio && info.audio.url) {
     const t0 = Date.now();
     const d = await motor.baixaAudioDireto(info.audio, info.id, info.duracao,
@@ -2673,7 +2684,10 @@ async function analisar(jaSei) {
     }
     return;
   }
-  if (!info.duracao) { partida("vazio", txt("semDuracao")); return; }
+  if (!info.duracao && !info.direct) {
+    partida("vazio", txt("semDuracao"));
+    return;
+  }
 
   VIDEO = info;
   // textContent e nao innerHTML: titulo vem da internet e pode conter
@@ -2772,6 +2786,17 @@ async function analisar(jaSei) {
   const aud = await pegaAudio(url, info);
   if (!aud.ok) { partida("vazio", txt("naoLi") + aud.erro); return; }
   AUDIO_TEMP = aud.arquivo;
+  if (!info.duracao && info.direct) {
+    const probed = await motor.ffprobeDuracao(AUDIO_TEMP);
+    if (probed > 0) {
+      info.duracao = probed;
+      VIDEO.duracao = probed;
+      $("duracao").textContent = tc(probed);
+      log("direct-file duration: ffprobe " + probed + "s");
+    } else {
+      log("direct-file duration: unavailable; trim disabled");
+    }
+  }
   preparaSom(AUDIO_TEMP);
   AGORA = 0;
 
