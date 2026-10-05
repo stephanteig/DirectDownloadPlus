@@ -45,8 +45,14 @@ class MetadataCache {
 
   get(request, now = Date.now()) {
     let entry;
-    try { entry = JSON.parse(fs.readFileSync(this.fileFor(request), "utf8")); }
-    catch (_) { return { hit: false, reason: "miss" }; }
+    const file = this.fileFor(request);
+    try { entry = JSON.parse(fs.readFileSync(file, "utf8")); }
+    catch (_) {
+      try {
+        if (fs.existsSync(file)) fs.unlinkSync(file);
+      } catch (_) {}
+      return { hit: false, reason: "miss" };
+    }
     if (!entry || !entry.createdAt || now - entry.createdAt > (entry.ttlMs || this.ttlMs)) {
       try { fs.unlinkSync(this.fileFor(request)); } catch (_) {}
       return { hit: false, reason: "expired" };

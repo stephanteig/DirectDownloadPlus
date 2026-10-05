@@ -22,6 +22,7 @@ try {
   assert.strictEqual(cache.get(request, 1201).reason, "expired");
   fs.writeFileSync(cache.fileFor(request), "not-json", "utf8");
   assert.strictEqual(cache.get(request).reason, "miss");
+  assert.strictEqual(fs.existsSync(cache.fileFor(request)), false);
   console.log("metadata cache tests: ok");
 } finally {
   fs.rmSync(directory, { recursive: true, force: true });
