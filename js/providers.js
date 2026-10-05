@@ -141,6 +141,28 @@ function cachePolicy(sourceUrl, metadata = {}) {
   };
 }
 
+class DirectFileProvider {
+  canHandle(url) { return !!directFileProvider(url); }
+  inspect(url) { return directFileProvider(url); }
+}
+
+class YTDLPProvider {
+  canHandle(url) { return !!validHttpUrl(url) && !directFileProvider(url); }
+  normalize(json, sourceUrl) { return normalizeYTDLP(json, sourceUrl); }
+}
+
+class ProviderResolver {
+  constructor() {
+    this.providers = [new DirectFileProvider(), new YTDLPProvider()];
+  }
+  resolve(url) {
+    for (const provider of this.providers) {
+      if (provider.canHandle(url)) return provider;
+    }
+    return null;
+  }
+}
+
 function classifyProviderError(raw) {
   const text = String(raw || "");
   if (/live|livestream|is_live/i.test(text)) return "active-livestream";
@@ -161,5 +183,8 @@ module.exports = {
   resolveProvider,
   isSignedMediaUrl,
   cachePolicy,
+  DirectFileProvider,
+  YTDLPProvider,
+  ProviderResolver,
   classifyProviderError,
 };

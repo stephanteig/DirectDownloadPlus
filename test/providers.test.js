@@ -19,6 +19,9 @@ assert.strictEqual(p.resolveProvider("https://example.com/page").provider, "yt-d
 assert.strictEqual(p.cachePolicy("https://rr.example/video.mp4").cacheMediaUrl, true);
 assert.strictEqual(p.cachePolicy("https://v16.cdninstagram.com/video.mp4?oe=abc&sig=xyz").cacheMediaUrl, false);
 assert.strictEqual(p.cachePolicy("https://v16.cdninstagram.com/video.mp4?oe=abc&sig=xyz").refreshMediaUrl, true);
+const resolver = new p.ProviderResolver();
+assert.strictEqual(resolver.resolve("https://cdn.example/file.mp4").constructor.name, "DirectFileProvider");
+assert.strictEqual(resolver.resolve("https://www.youtube.com/watch?v=x").constructor.name, "YTDLPProvider");
 
 const reel = p.normalizeYTDLP({
   id: "reel", title: "Reel", uploader: "creator", duration: 0,
