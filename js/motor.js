@@ -14,6 +14,7 @@ const os = require("os");
 const http = require("http");
 const https = require("https");
 const providers = require("./providers");
+const { MetadataCache } = require("./metadata-cache");
 
 const RAIZ = path.join(__dirname, "..");
 const EH_WIN = process.platform === "win32";
@@ -33,6 +34,8 @@ function pastaDoUsuario() {
     ? path.join(process.env.APPDATA || path.join(casa, "AppData", "Roaming"), "DirectDownload")
     : path.join(casa, "Library", "Application Support", "DirectDownload");
 }
+
+const METADATA_CACHE = new MetadataCache(path.join(pastaDoUsuario(), "metadata-cache"));
 
 /* ONDE ESTAO OS BINARIOS.
 
@@ -952,6 +955,14 @@ async function consulta(url) {
     return Object.assign({ ok: true, id: direct.sourceUrl, titulo: direct.title,
       canal: "", duracao: 0, thumb: "", audio: null, direct: true }, direct);
   }
+  const cacheRequest = { provider: "yt-dlp", sourceUrl: valid.href, format: "analysis" };
+  const cached = METADATA_CACHE.get(cacheRequest);
+  if (cached.hit && cached.metadata && cached.metadata.kind !== "collection") {
+    const metadata = cached.metadata;
+    return Object.assign({ ok: true, id: metadata.id || metadata.sourceUrl,
+      titulo: metadata.title, canal: metadata.author, duracao: metadata.duration || 0,
+      thumb: metadata.thumbnail || "", audio: null, doCache: true }, metadata);
+  }
   const r = await rodaYt(argsCookies().concat([
     "--no-warnings", "--no-playlist", "--socket-timeout", "20",
     "-f", "ba/b",
@@ -999,6 +1010,8 @@ async function consulta(url) {
       if (probed > 0) normalized.duration = probed;
     }
   }
+  try { METADATA_CACHE.set(cacheRequest, Object.assign({ id: j.id }, normalized)); }
+  catch (_) { /* Cache is an optimization; a read-only profile must still download. */ }
   return Object.assign({
     ok: true,
     id: j.id,
