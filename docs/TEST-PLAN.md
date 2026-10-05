@@ -11,6 +11,7 @@
 - YouTube-video: metadata, cache hit/miss og eksisterende valg.
 - Instagram Reel: `https://www.instagram.com/reels/Dcvt0UJCCRt/`.
 - TikTok, Vimeo, direkte MP4 og MP3.
+- Direkte mediefil uten støttet filendelse, men med korrekt MIME, inkludert servere som avviser HEAD.
 - Manglende duration med metadata-/ffprobe-fallback.
 - Aktiv livestream, privat video, innlogging/blokkering og utløpt URL.
 - FFmpeg-feil, yt-dlp-feil, ugyldig cache og kansellering.

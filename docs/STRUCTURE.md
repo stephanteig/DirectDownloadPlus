@@ -19,6 +19,8 @@ Kopien inneholder også øvrige filer under `bin/`. Binærfiler skal ikke erstat
 - `index.html` og `css/estilo.css`: eksisterende panel, layout, startskjerm, waveform, preview, trim, formatvalg, status og språkmarkører.
 - `js/app.js`: DOM-hendelser, analyse, preview, waveform, trim, formatvalg, fremdrift, nedlastingsstatus og Media Pool/timeline-flyt.
 - `js/motor.js`: yt-dlp/FFmpeg, `spawn`, avhengighetsvalg, JSON-analyse, direkte lydnedlasting, waveform og prosesslokale preview/video-cacher.
+- `js/providers.js`: providerresolver, normaliserte metadata/capabilities, formatvalg og feilklassifisering.
+- `js/metadata-cache.js`, `js/process-runner.js`, `js/retry-policy.js`: sikre støttegrenser for metadata-cache, prosesser og retry.
 - `js/ponte.js`: Resolve-tilkobling, prosjekt, Media Pool, bin/mappe, import og timeline.
 - `js/idiomas.js`: eksisterende språkpakker; nye meldinger skal legges til uten å fjerne nøkler.
 - `main.js`: Electron-vindu, IPC-logg, mapper, versjonskontroll, ekstern åpning og drag-out.
