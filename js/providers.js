@@ -123,10 +123,13 @@ function directFileProvider(value, contentType = "") {
   const ext = extensionOf(value) || MIME_EXTENSIONS.get(mime) || "";
   if (!url || !DIRECT_EXTENSIONS.has(ext)) return null;
   const kind = VIDEO_EXTENSIONS.has(ext) ? "video" : "audio";
+  const rawTitle = (url.pathname.split("/").pop() || "Download").replace(/\.[^.]+$/, "");
+  let title = rawTitle;
+  try { title = decodeURIComponent(rawTitle); } catch (_) {}
   return {
     provider: "direct-file",
     kind,
-    title: decodeURIComponent((url.pathname.split("/").pop() || "Download").replace(/\.[^.]+$/, "")),
+    title,
     author: "",
     duration: 0,
     thumbnail: "",
