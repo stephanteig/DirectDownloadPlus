@@ -43,6 +43,10 @@ aktiv jobb, eksplisitt tilstand, kansellering og begrenset retry. Den brukes
 først som testet byggestein; eksisterende panel fortsetter å styre én synlig
 nedlasting om gangen inntil full kø-UI kan innføres uten arbeidsflytendring.
 
+`js/retry-policy.js` klassifiserer providerfeil før coordinatoren retryer:
+ugyldig URL, innlogging, blokkering, utløpt URL, manglende FFmpeg og samlinger
+er permanente; midlertidige nettverks-/extractorfeil kan retryes.
+
 `js/process-runner.js` er den nye sikre prosessgrensen for videre providerarbeid:
 den bruker `spawn` med eksplisitte argumenter, samler stdout/stderr, støtter
 timeout og kan avslutte en aktiv prosess. Den eksisterende motorens prosesskode

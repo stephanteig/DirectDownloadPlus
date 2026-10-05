@@ -14,6 +14,7 @@
 - Eksisterende Direct Download-cache bevart, med separat TTL-basert metadata-cache.
 - Signerte CDN-URL-er fjernes før metadata-cache skrives.
 - Testet prosessrunner, kø, retry, kansellering og direkte FFmpeg-callback.
+- Provider-aware retry-policy som skiller permanente feil fra midlertidige feil.
 - JavaScript-syntaks, npm-tester og separat installasjon kontrollert.
 
 ## Testbevis
