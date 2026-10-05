@@ -61,5 +61,7 @@ assert.strictEqual(p.classifyProviderError("This is a live stream"), "active-liv
 assert.strictEqual(p.classifyProviderError("Private video: login required"), "authentication-required");
 assert.strictEqual(p.classifyProviderError("ffmpeg not found"), "ffmpeg-missing");
 assert.strictEqual(p.classifyProviderError("extractor failed"), "provider-failed");
+const live = p.normalizeYTDLP({ id: "live", title: "Live", is_live: true }, "https://example.com/live");
+assert.strictEqual(live.liveStatus, "is_live");
 
 console.log("provider tests: ok");

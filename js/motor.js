@@ -1000,6 +1000,17 @@ async function consulta(url) {
       collection: normalized,
     };
   }
+  if (normalized.liveStatus === "is_live" || normalized.liveStatus === "is_upcoming") {
+    return {
+      ok: false,
+      erro: normalized.liveStatus === "is_upcoming"
+        ? "kilden er en kommende livestream"
+        : "aktiv livestream støttes ikke i trim-/nedlastingsflyten",
+      providerError: "active-livestream",
+      liveStatus: normalized.liveStatus,
+      metadata: normalized,
+    };
+  }
   if (!normalized.duration) {
     const candidates = [];
     if (Array.isArray(j.requested_formats)) candidates.push(...j.requested_formats);
