@@ -48,6 +48,10 @@ den bruker `spawn` med eksplisitte argumenter, samler stdout/stderr, støtter
 timeout og kan avslutte en aktiv prosess. Den eksisterende motorens prosesskode
 er fortsatt urørt der den allerede er koblet til Direct Download-flyt.
 
+Direkte FFmpeg-ruter aksepterer også en valgfri prosess-callback (`aoNascer`).
+Det gjør at en fremtidig coordinator kan holde en aktiv child-prosess og
+kansellere den, mens eksisterende kall uten callback fortsetter uendret.
+
 Eksisterende cache skal ikke erstattes: binærvalg/fakta og prosesslokale preview/video-URL-er beholdes. Eventuelt nytt metadata-cache må ta hensyn til provider, normalisert URL og format. Signerte Instagram/CDN-URL-er må ha TTL og hentes på nytt etter utløp.
 
 `providers.cachePolicy()` gjør dette eksplisitt: metadata kan caches, mens

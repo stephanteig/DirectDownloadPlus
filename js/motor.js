@@ -1160,7 +1160,7 @@ function leProgressoFf(texto, duracao) {
    naquele container, ffmpeg sem o protocolo https: em qualquer um desses o
    app.js chama o baixaAudio() de sempre. Nao existe caso em que esta funcao
    deixe alguem sem baixar -- ela so deixa de ser rapida. */
-async function baixaAudioDireto(audio, id, duracao, aoProgresso) {
+async function baixaAudioDireto(audio, id, duracao, aoProgresso, aoNascer) {
   if (!audio || !audio.url || !audio.ext) return { ok: false, erro: "sem endereco de audio" };
 
   const ff = acha("ffmpeg");
@@ -1183,7 +1183,7 @@ async function baixaAudioDireto(audio, id, duracao, aoProgresso) {
     .concat(argsCabecalho(audio.cabecalhos), ["-i", audio.url, "-vn", "-c:a",
       audio.reencode ? "aac" : "copy", saida]);
 
-  const r = await roda(ff, args, aoProgresso);
+  const r = await roda(ff, args, aoProgresso, aoNascer);
   if (r.code !== 0) {
     /* O ERRO INTEIRO VAI NO CAMPO, e nao so a ultima linha. Quem le isto e o
        log, que precisa saber POR QUE a rota rapida caiu -- e foi justamente
@@ -1206,7 +1206,7 @@ async function baixaAudioDireto(audio, id, duracao, aoProgresso) {
   return { ok: true, arquivo: saida, bytes: tam };
 }
 
-async function baixaVideoDireto(url, id, inicio, fim, destino, titulo, aoProgresso) {
+async function baixaVideoDireto(url, id, inicio, fim, destino, titulo, aoProgresso, aoNascer) {
   const ff = acha("ffmpeg");
   if (!path.isAbsolute(ff) || !/^https?:\/\//i.test(String(url || ""))) {
     return { ok: false, erro: "direct-file krever en gyldig URL og FFmpeg" };
@@ -1222,7 +1222,7 @@ async function baixaVideoDireto(url, id, inicio, fim, destino, titulo, aoProgres
   args.push("-i", String(url));
   if (Number.isFinite(inicio) && Number.isFinite(fim) && fim > inicio) args.push("-t", String(fim - inicio));
   args.push("-c", "copy", output);
-  const r = await roda(ff, args, aoProgresso);
+  const r = await roda(ff, args, aoProgresso, aoNascer);
   if (r.code !== 0) return { ok: false, erro: limpaErro(r.erro) || "FFmpeg kunne ikke laste ned direkte video", bruto: String(r.erro || "") };
   try { if (fs.statSync(output).size < 1024) return { ok: false, erro: "direkte videofil ble tom" }; }
   catch (_) { return { ok: false, erro: "direkte videofil ble ikke opprettet" }; }
