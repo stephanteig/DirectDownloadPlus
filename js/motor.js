@@ -960,6 +960,7 @@ async function consulta(url) {
       erro: enxugaBloqueio(limpaErro(r.erro)) || "yt-dlp saiu com codigo " + r.code,
       bruto: String(r.erro || "").trim(),
       dica: await explicaFalha(r.erro),
+      providerError: providers.classifyProviderError(r.erro),
       /* A ACAO diz ao app.js que esta falha TEM saida, e qual. Um campo
          proprio, e nao um regex na dica: a dica e texto para uma pessoa ler e
          muda com o idioma; decidir botao por ela seria amarrar o comportamento
@@ -971,7 +972,7 @@ async function consulta(url) {
   let j;
   try { j = JSON.parse(r.saida); }
   catch (e) { return { ok: false, erro: "resposta do yt-dlp nao era JSON" }; }
-  if (!j || !j.id) return { ok: false, erro: "o link nao devolveu video" };
+  if (!j || !j.id) return { ok: false, erro: "o link nao devolveu uma fonte de mídia", providerError: "incomplete-metadata" };
 
   const normalized = providers.normalizeYTDLP(j, url);
   if (!normalized.duration) {

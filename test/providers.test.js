@@ -32,5 +32,6 @@ assert.strictEqual(collection.items.length, 1);
 
 assert.strictEqual(p.classifyProviderError("Sign in to confirm"), "authentication-required");
 assert.strictEqual(p.classifyProviderError("live stream"), "active-livestream");
+assert.strictEqual(p.classifyProviderError("403 Forbidden"), "source-blocked");
 
 console.log("provider tests: ok");

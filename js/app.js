@@ -2673,6 +2673,7 @@ async function analisar(jaSei) {
   if (!info.ok) {
     if (info.bruto) log("yt-dlp falhou:\n" + info.bruto);
     if (info.dica) log("provável causa: " + info.dica);
+    if (info.providerError) log("provider-feiltype: " + info.providerError);
     partida("vazio", txt("naoLi") + info.erro + (info.dica ? " — " + info.dica : ""));
     poeAcaoErro(info.acao);
     /* O DIALOGO SE OFERECE SOZINHO, uma vez. Guarda o link porque o campo e
