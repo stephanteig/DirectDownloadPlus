@@ -1,0 +1,1211 @@
+/* ===================================================================
+   Direct Download — estilo
+
+   As cores da timeline vieram do BlackSub, valores exatos: rulerColor,
+   audioTrackBg, gridColor e o selectedRed das alcas. Os fundos dele puxam
+   para o marrom, e nao para o cinza neutro — e sutil, mas e o que faz o
+   verde da onda e o vermelho das alcas assentarem em vez de vibrar.
+
+   O botao de download veio do BlackSlice: 250x35, branco a 10%, borda a 50%,
+   canto 6.
+   =================================================================== */
+
+:root {
+  --fundo:      #2D2D35;
+  --fundo2:     #35353E;
+  --fundo3:     #3A3A44;
+  --campo:      #25252C;
+  --borda:      #45454F;
+  --texto:      #D8D8DE;
+  --fraco:      #8A8A96;
+
+  --regua-bg:   #25252C;
+  --barra-tc:   #212128;
+  --marca:      #FF4245;   /* BlackSub selectedRed  */
+  --vermelho:   #F54542;   /* BlackSlice activeRed  */
+  /* O VERDE DE "DEU CERTO", em um lugar so. Ele pinta a linha de estado e o
+     botao depois do download, e os dois precisam ser o MESMO: dois verdes
+     confirmando a mesma coisa na mesma tela seriam lidos como dois estados
+     diferentes. */
+  --ok:         #AFBE6A;
+
+  /* A faixa e TEMA, nao cor fixa: o app.js sobrescreve as quatro abaixo a cada
+     troca em Ajustes. Ficam aqui para o painel nascer certo antes do JS. */
+  --trilha-bg:  #2A2E33;
+  --onda:       #A0ADB7;
+  --traco:      rgba(255,255,255,.30);
+  --grade:      rgba(255,255,255,.10);
+}
+
+* { box-sizing: border-box; }
+
+/* SEM height:100vh E SEM flex-grow NA TIMELINE.
+
+   Era isso que abria o vao entre o transporte e a linha de Audio: a secao da
+   timeline tinha `flex: 1 1 auto` dentro de um body de altura fixa, entao ela
+   esticava para ocupar a sobra e empurrava tudo para baixo. No mockup nao
+   havia flex nenhum, e por isso ele parecia certo e o app nao.
+
+   Agora o conteudo manda na altura, e a janela se ajusta a ele. */
+body {
+  margin: 0;
+  background: var(--fundo);
+  color: var(--texto);
+  font: 11px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.oculto  { display: none !important; }
+.apagado { opacity: .35; }
+
+/* ---------------- topo ---------------- */
+.topo {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  background: var(--fundo2);
+  border-bottom: 1px solid var(--borda);
+  flex: 0 0 auto;
+}
+.marca { font-size: 12px; font-weight: 600; color: #E8E8E8; white-space: nowrap; }
+.campo-link {
+  flex: 1 1 auto; min-width: 0;
+  background: var(--campo);
+  border: 1px solid var(--borda);
+  border-radius: 4px;
+  color: var(--texto);
+  padding: 6px 8px;
+  font: inherit;
+  user-select: text;
+}
+.campo-link:focus { outline: none; border-color: #6E6E6E; }
+
+/* ---------------- botoes ---------------- */
+.bt {
+  background: var(--fundo3);
+  border: 1px solid var(--borda);
+  border-radius: 4px;
+  color: var(--texto);
+  padding: 6px 12px;
+  font: inherit;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.bt:hover:not(:disabled) { background: #3A3A3A; }
+.bt:disabled { opacity: .4; cursor: default; }
+.bt-claro { background: #E8E8E8; border-color: #E8E8E8; color: #1A1A1A; font-weight: 600; }
+.bt-claro:hover:not(:disabled) { background: #FFF; }
+.bt-icone { padding: 5px 7px; display: flex; align-items: center; justify-content: center; }
+.ic-topo  { height: 14px; width: auto; color: var(--texto); }
+/* ATIVO EM CINZA, e nao em vermelho. No painel o vermelho ja quer dizer
+   marcacao e playhead; usa-lo tambem para "opcao ligada" fazia duas coisas
+   diferentes terem a mesma cor. */
+.bt-icone.ligado { background: #5A5A66; border-color: #75757F; }
+.bt-icone.ligado .ic-topo { color: #FFF; }
+.bt-mini  { padding: 3px 10px; }
+
+/* ---------------- ficha ---------------- */
+.ficha {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--borda);
+  flex: 0 0 auto;
+}
+/* 64 x 36 = 16:9, a proporcao que o YouTube entrega. */
+.capa {
+  width: 64px; height: 36px;
+  border-radius: 3px;
+  border: 1px solid var(--borda);
+  background: #2A2A2A;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.capa img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ficha-txt { flex: 1 1 auto; min-width: 0; }
+.titulo { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.canal  { color: var(--fraco); }
+.canal.erro { color: var(--vermelho); }
+.canal.ok   { color: var(--ok); }
+.duracao { color: var(--fraco); font-variant-numeric: tabular-nums; }
+
+/* ---------------- timeline ---------------- */
+.linha { padding: 12px 12px 0; flex: 0 0 auto; }
+.pista { border: 1px solid var(--fundo3); border-radius: 4px; overflow: hidden; }
+
+/* A REGUA E QUEM MANDA NO PLAYHEAD (1.9.0).
+
+   Antes o playhead se movia clicando em qualquer lugar da ONDA, e isso
+   custava o gesto de arrastar a onda para fora -- os dois queriam o mesmo
+   mousedown no mesmo lugar. Agora sao dois territorios: a regua move o
+   playhead, o corpo da onda seleciona o audio.
+
+   O cursor vale na regua INTEIRA, e nao so na agulha: clicar em qualquer
+   ponto dela salta o playhead para la, como no proprio Resolve. A agulha e
+   onde se pega para arrastar; a regua e onde se aponta. */
+.regua { position: relative; height: 22px; background: var(--regua-bg);
+         border-bottom: 1px solid var(--fundo3); cursor: ew-resize; }
+.regua canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* A AGULHA. Mesma anatomia das pegas de In/Out: caixa larga para o dedo,
+   desenho estreito para o olho.
+
+   z-index 7 -- um acima das pegas. Quando o playhead coincide com o In ou o
+   Out, quem precisa estar por cima e a agulha: e ela que se move o tempo
+   todo, e as pegas so quando se marca um trecho. */
+.agulha {
+  position: absolute; top: 0; height: 22px; width: 22px;
+  transform: translateX(-11px);
+  color: var(--marca);
+  cursor: ew-resize; z-index: 7;
+}
+.agulha svg { position: absolute; top: 0; left: 5px; width: 12px; height: 22px; display: block; }
+.agulha:hover svg, .agulha.pegando svg { filter: brightness(1.25); }
+/* Sem video carregado nao ha playhead nenhum para mostrar. */
+.agulha.oculto { display: none !important; }
+
+.onda {
+  position: relative; height: 106px;
+  background: var(--trilha-bg);
+  /* O cursor NAO e mais ew-resize por padrao: mover o playhead saiu daqui.
+     O app.js troca para ew-resize apenas quando o ponteiro passa em cima da
+     linha vermelha, que continua arrastavel para o ajuste fino. */
+  cursor: default;
+  overflow: hidden;   /* a rolagem e os botoes de zoom vivem dentro dela */
+}
+/* Perto da linha do playhead: o gesto volta a ser "arrastar o playhead". */
+.onda.no-playhead { cursor: ew-resize; }
+
+/* ---------------- A ONDA ARRASTAVEL (1.8.7) ----------------
+
+   DOIS ESTADOS, e eles nao sao o mesmo:
+
+     .pronta   ha um arquivo no disco. A onda pode ser arrastada.
+     .sel      a pessoa clicou nela. A onda esta selecionada.
+
+   Arrastar NAO exige selecionar antes -- num Finder da vida, arrastar um
+   arquivo que nao esta selecionado funciona, e obrigar o clique aqui seria
+   inventar uma etapa que ninguem procura. O clique existe para dar o
+   retorno visual de "e isto que vai sair daqui".
+
+   O contorno usa o mesmo verde-oliva do tc-dur e da faixa de versao: neste
+   painel, verde ja quer dizer "pronto". */
+.onda.pronta { cursor: pointer; }
+.onda.pronta.no-playhead { cursor: ew-resize; }   /* a linha continua mandando */
+.onda.sel {
+  box-shadow: inset 0 0 0 1.5px #9BBF6A;
+  cursor: grab;
+}
+.onda.sel:active { cursor: grabbing; }
+.onda canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* O veu escurece o que ficou FORA do trecho. Sem cor de destaque, o que marca
+   a selecao e a diferenca de luz — por isso ele e forte (72%). */
+.veu { position: absolute; top: 0; bottom: 0; background: var(--veu, rgba(10,12,15,.55)); pointer-events: none; }
+.veu-e { left: 0; }
+.veu-d { right: 0; }
+.alca  { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--marca);
+         pointer-events: none; transform: translateX(-1px); }
+
+/* A PEGA. A caixa de 24px e area de clique; quem se alinha e o SVG dentro
+   dela. O x=0 do SVG do In cai na borda ESQUERDA da linha e o x=13 do Out na
+   borda DIREITA -- por isso os 11px, e nao 12. */
+.pega {
+  position: absolute; top: 0; height: 22px; width: 24px;
+  transform: translateX(-12px);
+  color: var(--marca);
+  cursor: ew-resize; z-index: 6;
+}
+.pega svg { position: absolute; bottom: 0; width: 13px; height: 9px; display: block; }
+.pega-i svg { left: 11px; }
+.pega-o svg { right: 11px; }
+.pega:hover svg, .pega.pegando svg { filter: brightness(1.3); }
+
+/* Em modo All nao existe trecho: veu, linhas e pegas somem juntos. */
+body.modo-tudo .veu,
+body.modo-tudo .alca,
+body.modo-tudo .pega { display: none !important; }
+
+/* ---------------- barra de timecode ---------------- */
+/* Valores do BlackSub: fundo white 0.08, icone de 9px cinza, texto de 10px
+   monoespacado, duracao em oliva, volume de 80px a direita. */
+.barra-tc {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px;
+  background: var(--barra-tc);
+}
+.tc-item { display: flex; align-items: center; gap: 4px; color: var(--fraco); }
+.tc-ic   { width: 9px; height: 9px; fill: currentColor; flex: 0 0 auto; }
+.tc-txt  { color: #FFF; font: 10px/1 ui-monospace, Menlo, Consolas, monospace; }
+.tc-dur  { color: #AFBE6A; }              /* oliveGreen do BlackSub */
+.tc-agora { font-weight: 700; }           /* boldValue do BlackSlice */
+
+/* ---- OS TIMECODES QUE SE DIGITAM (1.9.14) ----
+
+   O campo tem a MESMA fonte e o MESMO tamanho do texto que ele substitui. Um
+   campo mais largo empurraria os outros tres timecodes para o lado no momento
+   em que voce comeca a digitar, e a barra inteira dancaria a cada edicao.
+
+   MEDIDO NO CHROMIUM, e a primeira conta estava errada: "00:00:00:00" nesta
+   fonte mede 66,2px, e a caixa precisa de 74 para caber o texto mais o respiro
+   e a borda. Com `width: 74px` e margem zero, abrir o campo empurrava os
+   outros timecodes 7,8px para a direita -- a barra dancava a cada duplo
+   clique. A margem negativa de 4px de cada lado devolve exatamente esses
+   7,8px: a caixa cresce para fora, sobre a folga de 10px do flex, e nada se
+   move. */
+.tc-ed {
+  width: 74px; box-sizing: border-box;
+  padding: 1px 3px; margin: -2px -4px;
+  background: var(--campo);
+  border: 1px solid var(--marca);
+  border-radius: 3px;
+  color: #FFF;
+  font: 10px/1 ui-monospace, Menlo, Consolas, monospace;
+  user-select: text;
+}
+.tc-ed:focus { outline: none; }
+/* O cursor avisa que da para digitar. Sem isto o duplo clique e um segredo:
+   a barra inteira parece so um mostrador. */
+#agora, #tcIn, #tcOut { cursor: text; }
+.tc-vol  { display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--fraco); }
+.tc-vol .tc-ic { width: 11px; height: 11px; }
+.tc-vol input { width: 80px; accent-color: #FFF; }
+
+.tempos {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 10px;
+  color: var(--fraco);
+}
+.campo-tempo {
+  width: 60px;
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: 3px;
+  color: var(--texto);
+  padding: 3px 6px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  user-select: text;
+}
+.campo-tempo:focus { outline: none; border-color: #6E6E6E; }
+.agora  { color: var(--texto); font: 10px/1 ui-monospace, Menlo, Consolas, monospace; margin-left: auto; }
+.trecho { margin-left: auto; color: var(--marca); }
+
+/* ---------------- opcoes ---------------- */
+/* Alinhadas a esquerda de proposito: esta linha e para ESCOLHER. A de baixo,
+   que EXECUTA, e centralizada. Alinhamentos diferentes separam os dois papeis. */
+.opcoes {
+  display: flex; align-items: center; gap: 18px;
+  padding: 12px 12px 0;
+  border-top: 1px solid var(--borda);
+  color: var(--fraco);
+  flex: 0 0 auto;
+}
+.grupo { display: flex; align-items: center; gap: 6px; }
+
+/* AS REGRAS MORTAS QUE MORAVAM AQUI FORAM REMOVIDAS.
+
+   .seletor, .op, .op-on, .checa, .checa input e .credito eram sobras do
+   layout antigo. Cada uma tinha uma gemea mais abaixo, e a de baixo vencia --
+   mas so nas propriedades que ELA declarava. Duas regras com o mesmo seletor
+   nao brigam por inteiro: a cascata decide PROPRIEDADE A PROPRIEDADE, e a que
+   so a primeira declara continua valendo.
+
+   Foi assim que o botao de download ficou com 230px de largura (o bloco antigo
+   declarava width, o novo nao) e que os cards da pagina do site sairam em duas
+   colunas. Antes de remover, cada par foi comparado propriedade a propriedade:
+   as seis eram 100% sobrescritas.
+
+   O .bt-download:disabled tambem estava duplicado, mas dividia a linha com
+   .bt-tr:disabled -- que nao tem outra regra. Ali saiu so o seletor repetido. */
+
+
+/* ---------------- acao ---------------- */
+/* 250x35 e o tamanho do botao do BlackSlice, e o Spacer() dos dois lados dele
+   virou justify-content: center. */
+.acao { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 12px 0; flex: 0 0 auto; }
+/* O CONTORNO E CINZA, NAO BRANCO.
+
+   O BlackSlice usa Color.white.opacity(0.5) num stroke de 1 PONTO. Numa tela
+   Retina isso vira 2 pixels com antialiasing, e o resultado na tela e um cinza
+   medio. Uma borda CSS de 1px com o mesmo 0.5 sai solida e bem mais acesa --
+   por isso aqui o valor e menor: o alvo e o que se ve, nao o numero. */
+/* O bloco antigo de .bt-download / .bt-pasta / .ic morava aqui e foi
+   removido. Ele nao era inofensivo: declarava `width: 230px`, e o bloco novo
+   (mais abaixo) nao declara largura nenhuma. A cascata mantinha os 230px, e o
+   botao ficava com quase o dobro da largura do texto -- exatamente como a
+   regra do .bt-mute que sumiu e devolveu o botao ao estilo nativo do macOS.
+
+   Duas regras com o mesmo seletor na mesma folha nao brigam por inteiro: cada
+   propriedade e decidida em separado, e a que so a primeira declara VENCE. */
+
+
+/* A BARRA DE PROGRESSO, sobre a onda. Esta regra sumiu no corte que reescreveu
+   o transporte, junto com a do botao de mudo -- por isso ela vai de volta com
+   nome proprio, longe da classe .barra da barra de acoes. */
+.barra-fora {
+  position: absolute; left: 0; right: 0; top: 0;
+  height: 3px; background: rgba(0,0,0,.35);
+  overflow: hidden; pointer-events: none;
+}
+.barra-fora > div { height: 100%; width: 0; background: #FFF; transition: width .15s; }
+
+/* ---------------- barra unica ---------------- */
+/* Transporte a esquerda, formato e download a direita. Uma linha so, em vez
+   das tres que existiam (transporte, opcoes, acao). */
+.barra {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px;
+  flex: 0 0 auto;
+}
+.barra.apagado { opacity: .45; }
+.bt-tr:disabled { cursor: default; }   /* o .bt-download:disabled saiu daqui: ja e declarado la embaixo, com opacity junto */
+.tr-esq { display: flex; align-items: center; gap: 0; flex: 0 0 auto; }
+.grupo-tr  { display: flex; align-items: center; gap: 5px; }
+/* O respiro entre os dois grupos e o que impede a fila de sete botoes iguais
+   de parecer um bloco so. */
+.grupo-sel { display: flex; align-items: center; gap: 4px; margin-left: 9px; }
+.tr-dir { display: flex; align-items: center; gap: 9px; margin-left: auto; flex: 0 0 auto; }
+
+/* 24 x 24, com o conteudo centrado pelo flex nos dois eixos. O `line-height: 1`
+   nao e detalhe: com o padrao da fonte o texto ganha altura extra invisivel e
+   assenta abaixo do centro. */
+.bt-tr {
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  /* #33333C com contorno, em vez do branco a 12%: sobre o fundo #2D2D35 a
+     transparencia dava um cinza quase igual ao da barra, e os botoes sumiam. */
+  background: #33333C;
+  border: 1px solid #4A4A55; border-radius: 5px;
+  color: #FFF;
+  font: 9px/1 -apple-system, "Segoe UI", Roboto, sans-serif;
+  cursor: pointer; padding: 0; flex: 0 0 auto;
+}
+.bt-tr:hover  { background: rgba(255,255,255,.2); }
+.bt-tr:active { background: rgba(255,255,255,.28); }
+.bt-marca { font-size: 13px; font-weight: 700; }
+/* LARGURA FIXA: "All" e "I/O" tem larguras diferentes, e sem isto a barra
+   inteira se desloca a cada clique. */
+.bt-tudo  { width: 44px; padding: 0; font: 600 10px/1 -apple-system, "Segoe UI", Roboto, sans-serif; letter-spacing: .3px; }
+.bt-tudo.ligado { background: #5A5A66; border-color: #75757F; color: #FFF; }
+/* Sem In/Out nao ha o que marcar: os dois colchetes ficam apagados. */
+.bt-marca.mudo { opacity: .35; }
+
+/* As setas sao SVG: em fonte, "◂|" e "|▸" tem metrica propria e assentam fora
+   do centro -- em 24px isso salta aos olhos. */
+.ic-play, .ic-tr { width: 11px; height: 11px; display: block; }
+
+.seletor {
+  display: inline-flex; height: 24px;
+  background: var(--campo);
+  border: 1px solid var(--borda);
+  border-radius: 4px;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+.op { display: flex; align-items: center; padding: 0 10px; color: var(--fraco); cursor: pointer; }
+.op-on { background: #54545F; color: #F0F0F4; }
+
+.checa { display: flex; align-items: center; gap: 5px; color: var(--texto); cursor: pointer; flex: 0 0 auto; }
+.checa input { width: 13px; height: 13px; accent-color: #8A8A96; margin: 0; }
+
+/* O BOTAO CRESCE COM O TEXTO, e nao tem largura fixa.
+   Nesta barra ele divide espaco com mais cinco grupos, e "DOWNLOAD WAVE + MP4"
+   e bem maior que "DOWNLOAD MP3" -- largura fixa cortaria um ou sobraria no
+   outro. O contorno segue o do BlackSlice: branco a 28%, que na tela da o
+   cinza dele (uma borda CSS solida no 0.5 do original sai bem mais acesa). */
+.bt-download {
+  /* 138px = os 230px de antes menos 40%. Com box-sizing a largura e a final,
+     borda inclusa. A fonte desceu de 11 para 10px e o respiro lateral de 14
+     para 8 porque o rotulo mais longo dos tres idiomas ("DESCARGAR WAVE")
+     precisa de ~90px, e sem isso ele estouraria a caixa em espanhol -- em
+     ingles caberia, e o defeito so apareceria na maquina de outra pessoa. */
+  /* 100px. O rotulo perdeu a extensao: o seletor WAVE/MP3 esta a 60px daqui
+     dizendo a mesma coisa, e o botao repetia o vizinho. De brinde, a barra
+     parou de mudar de largura a cada clique -- antes o texto ia de
+     "DOWNLOAD MP3" a "DOWNLOAD WAVE + MP4" e tudo se deslocava junto. */
+  /* 120px desde a 2.3.3. O icone voltou ao estado verde, e ele custa ~15px
+     mais um respiro de 5. A conta, com box-sizing:border-box:
+
+         120 − 2 (borda) − 16 (padding) = 102 uteis
+         menos a alca (4 + 1 de margem) e os dois respiros de 5 = 87
+         menos o icone (viewBox 22x16 a 11px de altura = 15,1) = 72 para o rotulo
+
+     E o rotulo mais longo dos tres idiomas, "ARRASTRAR", mede ~64px nesta
+     fonte -- a mesma regra de tres que o projeto ja mediu em Chromium, onde
+     "DOWNLOADED" (10 letras) deu 77px. Sobram 8px.
+
+     O ESPACO VEIO DA CAIXA "Timeline", que saiu desta barra na 2.3.1. Sem
+     aquela saida, alargar aqui empurraria alguma coisa para fora. */
+  width: 120px; box-sizing: border-box;
+  height: 30px;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 0 8px;
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: 6px;
+  color: #FFF;
+  font: 500 10px/1 -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: .4px;
+  /* SEM overflow:hidden aqui de proposito. Com ele, um rotulo que nao coubesse
+     seria cortado em silencio -- e so em espanhol, so na maquina de outra
+     pessoa. Sem ele, estoura visivel e alguem conserta. */
+  cursor: pointer; white-space: nowrap; flex: 0 0 auto;
+}
+.bt-download:hover:not(:disabled) { background: rgba(255,255,255,.16); }
+.bt-download:disabled { opacity: .45; cursor: default; }
+
+/* ---------------- O BOTAO DEPOIS DO DOWNLOAD  (1.9.13) ----------------
+
+   Ate a 1.9.12 o botao voltava a "DOWNLOAD" no instante em que terminava,
+   igual a como estava antes do clique. Quem confirmava era a linha de estado,
+   dois palmos acima -- e ela some quando o nome do canal volta. O gesto mais
+   importante do painel nao deixava marca.
+
+   O VERDE E O MESMO DO .ok DA LINHA DE ESTADO. Dois verdes confirmando a
+   mesma coisa na mesma tela seriam lidos como dois estados diferentes.
+
+   E ele NAO PREENCHE: um botao cheio de cor pede clique, e este ja foi
+   clicado. O que ele precisa e lembrar, nao chamar. Some quando voce cola
+   outro link -- o paraTudo() zera o arquivo, e o verde vai junto. */
+.bt-download.feito {
+  background: rgba(175,190,106,.14);
+  border-color: var(--ok);
+  color: var(--ok);
+  transition: background .18s ease, border-color .18s ease, color .18s ease;
+}
+.bt-download.feito:hover:not(:disabled) { background: rgba(175,190,106,.24); }
+
+/* O botao verde SE ARRASTA para a timeline, e faz o mesmo que arrastar a onda.
+   O cursor e o mesmo da onda selecionada (.onda.sel): o gesto e o mesmo e o
+   arquivo e o mesmo, entao o cursor tambem tem de ser. */
+.bt-download.feito { cursor: grab; }
+.bt-download.feito:active { cursor: grabbing; }
+
+/* O ICONE SAI NO ESTADO VERDE, e isso e conta de largura, nao gosto.
+
+   MEDIDO NO CHROMIUM, com o painel montado do index.html: a caixa tem 100px e
+   84 uteis. Com a onda (22px), o respiro (5px) e a alca (5px), sobram 52px
+   para o rotulo -- e "DOWNLOADED" mede 77px, "DESCARGADO" 75px. O botao
+   estourava por 4px em ingles e em espanhol, e nao em portugues: o defeito
+   so apareceria na maquina de outra pessoa. Sem o icone sobram 79px e os tres
+   cabem.
+
+   Um visto no lugar da onda tambem nao resolveria: ele custa os mesmos 22px.
+   E a confirmacao nao esta faltando -- o verde e a palavra ja dizem. */
+/* O ICONE VOLTOU AO ESTADO VERDE  (2.3.3), e a conta acima e que permitiu.
+
+   O motivo de ele ter saido era o rotulo: com o icone sobravam 52px, e
+   "DOWNLOADED" media 77px. A 2.3.1 trocou aquele rotulo por DRAG / ARRASTAR /
+   ARRASTRAR -- o mais longo dos tres mede cerca de 64px, contra os 77 de
+   antes -- e a 2.3.1 tambem tirou a caixa "Timeline" da barra, o que deixou
+   espaco para o botao crescer.
+
+   COM 120px SOBRAM 72px PARA O ROTULO, contra os 64 do espanhol. A margem e
+   de 8px, e nao dos 4px que estouraram da outra vez.
+
+   E O ICONE VOLTOU PORQUE ELE PASSOU A DIZER ALGO QUE MAIS NADA DIZ: qual dos
+   dois arquivos vai cair na timeline quando voce arrastar. O verde diz que
+   acabou, a palavra diz o gesto, e a onda ou a claquete dizem o QUE. */
+
+/* A ALCA DE PONTINHOS. Ela e o unico aviso que nao exige passar o mouse por
+   cima -- e quem baixa e vai direto para o Resolve nao passa. Fora do estado
+   verde ela nao ocupa espaco nenhum (display:none, e nao opacity: com
+   opacity o rotulo ficaria 5px deslocado o tempo todo). */
+.bt-download .alca-ar { display: none; }
+.bt-download.feito .alca-ar {
+  display: block;
+  width: 4px; height: 12px; flex: 0 0 auto; margin-right: 1px;
+  background-image: radial-gradient(currentColor 1px, transparent 1px);
+  background-size: 2px 4px;
+  opacity: .55;
+}
+
+/* O TRABALHANDO VEM DEPOIS DO VERDE, e a ordem e o unico motivo.
+
+   As duas regras mexem no mesmo background com a mesma especificidade, e a
+   cascata decide propriedade a propriedade pela ULTIMA declarada. Com esta
+   linha antes do bloco .feito -- que era onde ela estava -- baixar de novo
+   depois de um download deixava o botao verde no meio do trabalho, em vez de
+   vermelho. O ocupa() tambem tira o .feito, e nao um no lugar do outro: o JS
+   cuida do arraste e do rotulo, o CSS cuida de nao depender do JS. */
+.bt-download.ocupado { background: var(--vermelho); border-color: var(--vermelho); }
+.bt-pasta {
+  width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 6px;
+  color: #FFF; cursor: pointer; flex: 0 0 auto;
+}
+.bt-pasta:hover { background: rgba(255,255,255,.16); }
+.ic { height: 13px; width: auto; flex: 0 0 auto; }
+/* so o do botao de download: 2px a menos de altura sao ~3px a menos de
+   largura, e sao esses 3px que fazem "DESCARGAR VIDEO" caber nos 138px. */
+#icDownload.ic { height: 11px; }
+
+/* O BOTAO DE MUDO.
+
+   Esta regra sumiu quando o bloco do transporte foi reescrito, e sem ela o
+   <button> volta ao estilo NATIVO do macOS -- o retangulo branco no meio da
+   barra escura. Botao sem classe nao fica invisivel: fica com a cara do
+   sistema, que e pior, porque parece proposital. */
+.bt-mute {
+  background: none; border: none; padding: 0;
+  width: 20px; height: 16px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--fraco);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.bt-mute.mudo { color: var(--vermelho); }
+
+.credito { text-align: center; color: rgba(138,138,150,.65); padding: 0 0 12px; flex: 0 0 auto; }
+
+/* ---------------- ajustes ---------------- */
+.tela { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.tela-caixa { width: 90%; max-width: 540px; max-height: 86vh; background: var(--fundo2); border: 1px solid var(--borda); border-radius: 6px; display: flex; flex-direction: column; }
+.tela-topo { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--borda); font-weight: 600; }
+.tela-corpo { padding: 12px; overflow-y: auto; }
+.grupo-aj { margin-bottom: 16px; }
+.grupo-tit { color: #E8E8E8; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.linha-aj { display: flex; gap: 6px; }
+.campo-pasta { flex: 1 1 auto; min-width: 0; background: var(--fundo); border: 1px solid var(--borda); border-radius: 3px; color: var(--fraco); padding: 5px 7px; font: inherit; user-select: text; }
+.status { color: var(--fraco); margin-bottom: 6px; }
+.status.ok   { color: #7FB894; }
+.status.erro { color: var(--vermelho); }
+.caminhos {
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 10px;
+  color: var(--fraco);
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-radius: 3px;
+  padding: 6px;
+  max-height: 140px;
+  overflow-y: auto;
+  margin-bottom: 6px;
+  user-select: text;
+}
+.caminhos div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.caminhos .sim    { color: #7FB894; }
+.caminhos .nao    { color: var(--fraco); opacity: .6; }
+.caminhos .falhou { color: var(--vermelho); }
+
+/* Barra de rolagem "fio", igual a dos outros plugins */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #4A4A4A; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #5A5A5A; }
+
+
+/* ---------------- atalhos ---------------- */
+.tela-estreita { max-width: 380px; }
+
+/* ---------------- o dialogo do bloqueio  (2.1.0) ----------------
+
+   Duas saidas, uma embaixo da outra, e a de cima e a que resolve na hora. A
+   ordem nao e arbitraria: os cookies custam um clique e nenhum download; o
+   update custa 35 MB e alguns minutos. Quem le de cima para baixo encontra
+   primeiro o caminho mais barato.
+
+   O texto explicativo vem ANTES das duas, porque a primeira coisa que a pessoa
+   precisa saber e que o video esta bem -- sem isso ela vai procurar outro
+   link, que era o que acontecia. */
+.bloq-txt { color: var(--texto); font-size: 11.5px; line-height: 1.5; margin: 0 0 14px; }
+
+
+/* "Agora nao" e texto, e nao botao: recusar nao precisa da mesma area de
+   clique que aceitar. */
+.bt-linkado { display: block; margin: 2px auto 0; padding: 4px 8px; background: none;
+  border: 0; color: var(--fraco); font: inherit; font-size: 11px; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px; }
+.bt-linkado:hover { color: var(--texto); }
+.atalho {
+  display: flex; align-items: center; gap: 12px;
+  padding: 5px 0;
+  color: var(--texto);
+}
+.atalho kbd {
+  min-width: 54px;
+  text-align: center;
+  background: var(--fundo);
+  border: 1px solid var(--borda);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font: 11px/1 ui-monospace, Menlo, Consolas, monospace;
+  color: #FFF;
+  flex: 0 0 auto;
+}
+.atalho span { color: var(--fraco); }
+.atalho-nota { margin-top: 10px; color: var(--fraco); opacity: .8; line-height: 1.5; }
+
+/* ---------------- core engine ---------------- */
+.motor-tit { display: flex; align-items: center; justify-content: space-between; }
+.motor-ver {
+  color: rgba(138,138,138,.6);
+  font: 10px/1 ui-monospace, Menlo, Consolas, monospace;
+  text-transform: none; letter-spacing: 0;
+}
+.motor-sub { color: rgba(138,138,138,.7); font-size: 10px; margin-bottom: 8px; }
+
+/* O botao usa a mesma logica de cor do BlackSlice: azul enquanto trabalha,
+   verde quando termina bem. */
+/* FLEX, e nao text-align (2.1.0): o botao ganhou o icone do BlackSlice ao
+   lado do rotulo, e centralizar dois filhos e trabalho de flex. `display` num
+   <button> nao herda nada do texto que estava ali antes. */
+.bt-update {
+  width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 9px;
+  background: rgba(74,127,181,.2);
+  border: none;
+  border-radius: 6px;
+  color: #FFF;
+  font: 600 11px/1 -apple-system, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: .5px;
+  cursor: pointer;
+}
+.bt-update:hover:not(:disabled) { background: rgba(74,127,181,.32); }
+.bt-update:disabled { opacity: .7; cursor: default; }
+.ic-update { width: 13px; height: 13px; flex: none; }
+.bt-update.pronto { background: rgba(127,184,148,.22); color: #7FB894; }
+
+
+/* ---------------- zoom e rolagem, DENTRO da onda ---------------- */
+/* Ficam sobrepostos de proposito: uma linha de controles fora da faixa
+   custaria altura o tempo todo para algo que so importa quando se aproxima. */
+.zoom {
+  position: absolute; top: 6px; right: 6px;
+  display: flex; align-items: center; gap: 3px;
+}
+.bt-z {
+  width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.32);
+  border: none; border-radius: 4px;
+  color: #F0F0F4;
+  font: 12px/1 -apple-system, "Segoe UI", Roboto, sans-serif;
+  cursor: pointer; padding: 0;
+}
+.bt-z:hover { background: rgba(0,0,0,.5); }
+.bt-z.ajustar { font-size: 10px; }
+.z-rot {
+  color: #F0F0F4; background: rgba(0,0,0,.32);
+  border-radius: 4px; padding: 0 5px; height: 18px;
+  display: flex; align-items: center;
+  font: 9px/1 ui-monospace, Menlo, Consolas, monospace;
+}
+
+/* Colada na base, sem margem: aparece so quando ha o que rolar. */
+.rolagem {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 7px; background: rgba(0,0,0,.32);
+  cursor: grab;
+}
+.rolagem.oculto { display: none !important; }
+.polegar { position: absolute; top: 0; bottom: 0; background: rgba(255,255,255,.55); }
+
+/* ---------------- temas da onda, nos Ajustes ---------------- */
+.temas { display: flex; gap: 6px; }
+.tema {
+  flex: 1 1 auto;
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 9px;
+  background: var(--campo);
+  border: 1px solid var(--borda);
+  border-radius: 4px;
+  color: var(--fraco);
+  cursor: pointer;
+}
+.tema.ligado { border-color: #7A7A86; color: var(--texto); }
+.amostra { width: 26px; height: 14px; border-radius: 2px; flex: 0 0 auto; position: relative; overflow: hidden; }
+.amostra i { position: absolute; top: 3px; bottom: 3px; width: 2px; border-radius: 1px; }
+
+/* AS CORES DAS AMOSTRAS DO SELETOR DE TEMA.
+
+   Vieram de atributos style= no index.html. A CSP da pagina declara
+   style-src 'self' sem 'unsafe-inline', entao o Chromium recusava os doze e
+   as amostras ficavam sem cor -- nos dois sistemas, nao so no Windows.
+
+   Ficam presas ao data-tema, que ja existia no elemento pai: assim a cor de
+   cada tema tem UM lugar so, e acrescentar um tema novo e acrescentar tres
+   linhas aqui em vez de reescrever HTML. As posicoes das barrinhas (5, 11,
+   17) sao iguais nos tres e por isso saem do seletor de tema. */
+.amostra i:nth-child(1) { left: 5px; }
+.amostra i:nth-child(2) { left: 11px; top: 1px; bottom: 1px; }   /* a do meio e mais alta */
+.amostra i:nth-child(3) { left: 17px; }
+
+.tema[data-tema="mono"]  .amostra   { background: #2A2E33; }
+.tema[data-tema="mono"]  .amostra i { background: #A0ADB7; }
+.tema[data-tema="azul"]  .amostra   { background: #027591; }
+.tema[data-tema="azul"]  .amostra i { background: #06262E; }
+.tema[data-tema="verde"] .amostra   { background: #4A8F66; }
+.tema[data-tema="verde"] .amostra i { background: #C9E9D5; }
+
+
+/* O dropdown de idioma. `appearance:none` para o seletor nativo do macOS nao
+   trazer o cinza claro dele para dentro de um painel escuro. */
+.campo-sel {
+  width: 100%;
+  appearance: none;
+  background: var(--campo);
+  border: 1px solid var(--borda);
+  border-radius: 4px;
+  color: var(--texto);
+  padding: 6px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+.campo-sel:focus { outline: none; border-color: #7A7A86; }
+
+
+/* =====================================================================
+   TELA DE PARTIDA
+
+   Uma classe no <body> liga e desliga o painel inteiro. Ver o comentario
+   no index.html: controlar peca a peca deixaria a ordem das chamadas do
+   analisar() decidir o que fica visivel, e ela nao deve decidir nada.
+   ===================================================================== */
+body.na-partida #topo,
+body.na-partida #ficha,
+body.na-partida #linha,
+body.na-partida #credito { display: none !important; }
+body:not(.na-partida) #partida { display: none !important; }
+
+/* A BUSCA TOMA A JANELA  (1.8.8)
+
+   Estas duas regras vem DEPOIS das da partida de proposito. A cascata decide
+   propriedade a propriedade, e aqui as duas declaram a MESMA propriedade
+   (display) para o MESMO elemento em situacoes que se sobrepoem: com
+   .na-partida e .buscando ao mesmo tempo, quem esta embaixo vence. E tem de
+   ser a busca, senao a lupa da tela limpa abriria um painel invisivel. */
+body:not(.buscando) #busca { display: none !important; }
+body.buscando #partida,
+body.buscando #topo,
+body.buscando #ficha,
+body.buscando #linha,
+/* O VIDEO ENTRA NESTA LISTA  (1.9.8).
+
+   Ele nasceu na 1.9.5 e ficou de fora dela: com um video aberto, abrir a lupa
+   punha a imagem POR CIMA da busca -- dava para ver so a primeira linha da
+   lista, e o resto era o quadro preto do player.
+
+   A lista existia antes do video, e por isso nao o mencionava. Toda secao que
+   ocupa o corpo do painel tem de estar aqui: a busca TOMA A JANELA INTEIRA, e
+   quem nao for a busca sai de cena enquanto ela estiver aberta. */
+body.buscando #video,
+body.buscando #credito { display: none !important; }
+
+.busca {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+}
+.busca-topo {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px;
+  background: var(--fundo2);
+  border-bottom: 1px solid var(--borda);
+  flex: 0 0 auto;
+}
+.busca-ic { flex: 0 0 auto; color: var(--fraco); }
+.busca-estado {
+  padding: 7px 12px;
+  font-size: 11px; color: var(--fraco);
+  flex: 0 0 auto;
+}
+.busca-estado.erro { color: var(--vermelho); }
+.busca-estado.oculto { display: none !important; }
+
+/* A LISTA E O UNICO PEDACO QUE ROLA. O overflow mora aqui, e nao no body: o
+   body e flex-column com min-height 100vh, e um overflow nele rolaria a janela
+   inteira, levando o campo de busca junto para fora da tela. */
+.busca-lista {
+  list-style: none; margin: 0; padding: 0;
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto; overflow-x: hidden;
+}
+.busca-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 6px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255,255,255,.05);
+}
+.busca-item:hover { background: var(--fundo3); }
+/* Teclado: a mesma cor do hover valeria como "onde estou", mas some assim que
+   o mouse encosta em outra linha. A borda esquerda nao some. */
+.busca-item.foco { background: var(--fundo3); box-shadow: inset 2px 0 0 #AFBE6A; }
+
+/* A MINIATURA TEM TAMANHO FIXO E FICA NUMA CAIXA COM FUNDO. A imagem chega por
+   file:// e pode nao chegar -- resultado sem capa mantem a linha do mesmo
+   tamanho, e a lista nao pula enquanto as miniaturas entram. */
+.busca-capa {
+  flex: 0 0 auto;
+  width: 64px; height: 36px;
+  border-radius: 3px;
+  background: var(--campo);
+  overflow: hidden;
+}
+.busca-capa img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.busca-txt { flex: 1 1 auto; min-width: 0; }
+/* Uma linha so, com reticencias. Titulo de video passa de cem caracteres com
+   frequencia, e duas linhas fariam a altura da linha variar com o titulo. */
+.busca-tit {
+  font-size: 11px; color: #E4E4EA;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.busca-sub {
+  font-size: 10px; color: var(--fraco);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.busca-dur {
+  flex: 0 0 auto;
+  font-size: 10px; color: var(--fraco);
+  font-variant-numeric: tabular-nums;
+}
+/* AO VIVO nao tem duracao e nao vira trilha. Aparece na lista, com rotulo, em
+   vez de sumir: sumir com o resultado que a pessoa procurava e pior que
+   mostra-lo dizendo por que ele nao serve. */
+.busca-dur.vivo { color: var(--vermelho); }
+
+.partida {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 15px;
+  position: relative;
+}
+/* AS ACOES DA TELA LIMPA  (1.8.9)
+
+   A barra flutua no canto e NAO entra no fluxo: a .partida e um flex centrado,
+   e um botao no fluxo empurraria o icone e o texto para cima.
+
+   A .p-lupa volta a position:static aqui. Ela nasceu absoluta na 1.8.8, quando
+   era o unico botao; dentro da barra, absoluta, ela sairia do flex e cairia
+   por cima da pasta -- e o defeito seria dois icones no mesmo pixel, nao um
+   erro visivel. */
+.p-acoes { position: absolute; top: 10px; right: 12px; display: flex; gap: 6px; }
+.p-lupa { position: static; }
+
+/* SEM CONTORNO. A caixa cinza so aparece com o mouse em cima.
+
+   Nao e economia de tinta: na tela limpa a leitura inteira passa pelo centro
+   -- o icone, o "Cole um link" e a dica -- e dois retangulos desenhados no
+   canto pesam mais do que o que eles fazem. O hover devolve a area clicavel
+   inteira a quem for clicar. */
+.bt-nu { background: transparent; border-color: transparent; }
+.bt-nu:hover:not(:disabled) { background: rgba(255,255,255,.09); border-color: rgba(255,255,255,.10); }
+
+/* ONDE VAI CAIR. No mesmo cinza da dica: e informacao de conferencia, nao um
+   titulo. Uma linha so, com reticencias -- caminho de projeto passa de cem
+   caracteres com facilidade, e duas linhas mudariam a altura da tela. */
+.p-pasta {
+  margin: 0; font-size: 10px; color: #7A7A86;
+  display: flex; align-items: center; gap: 5px;
+  max-width: 84%;
+}
+.p-pasta svg { height: 10px; width: auto; flex: 0 0 auto; opacity: .8; }
+.p-pasta i {
+  font-style: normal; color: #9A9AA6;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  /* O FIM DO CAMINHO E O QUE IMPORTA. "/Users/jhaimes/Movies/..." e igual em
+     tudo; o que distingue e a ponta. O direction:rtl corta pela ESQUERDA. */
+  direction: rtl; text-align: left;
+}
+.p-ico { width: 66px; height: 66px; }
+.p-ico svg { width: 66px; height: 66px; display: block; }
+
+/* A seta pulsa devagar na espera e depressa durante a analise. E a unica
+   diferenca de movimento entre os dois estados -- havia um brilho varrendo
+   o icone e ele foi tirado a pedido. */
+.p-seta     { animation: p-pula   1.9s cubic-bezier(.4,0,.3,1) infinite; }
+.p-barrinha { animation: p-brilha 1.9s ease-in-out infinite; }
+body.analisando .p-seta,
+body.analisando .p-barrinha { animation-duration: .75s; }
+@keyframes p-pula   { 0%,100%{transform:translateY(-3px)} 45%{transform:translateY(4px)} 60%{transform:translateY(2px)} }
+@keyframes p-brilha { 0%,35%{opacity:.35} 52%{opacity:1} 100%{opacity:.35} }
+
+.partida h4 { margin: 0; font: 600 14px/1 inherit; color: #E4E4EA; letter-spacing: .2px; }
+.partida p  { margin: 0; font-size: 11px; color: #8A8A98; display: flex; align-items: center; gap: 5px; }
+/* As caixinhas de tecla sairam: viraram uma frase so, tudo no mesmo cinza.
+   Duas caixas para duas teclas pesavam mais que a instrucao inteira. */
+
+/* A barra da analise tem DOIS modos. Enquanto o yt-dlp so consulta, nao ha
+   percentual nenhum para mostrar e ela desliza em laco. Assim que o download
+   do audio comeca a reportar %, ela vira uma barra de verdade -- uma barra em
+   laco por vinte segundos parece um app travado. */
+.p-rail { width: 150px; height: 3px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
+.p-rail i { display: block; height: 100%; width: 38%; background: var(--oliva, #AFBE6A); border-radius: 2px;
+            animation: p-desliza 1.05s ease-in-out infinite; }
+.p-rail.medido i { animation: none; width: 0%; transition: width .18s linear; }
+@keyframes p-desliza { 0%{transform:translateX(-105%)} 100%{transform:translateX(268%)} }
+
+.p-erro { max-width: 82%; text-align: center; font-size: 11px; color: #E8756F; line-height: 1.45; }
+
+/* A SAIDA DO ERRO  (2.1.0). Discreta de proposito: quem manda na tela e a
+   mensagem, e o botao e o passo seguinte dela -- nao um segundo aviso
+   competindo pela mesma atencao. Por isso texto e contorno, e nao um botao
+   cheio. */
+.p-acao-erro { margin-top: 9px; padding: 4px 12px; font-size: 11px; cursor: pointer;
+  color: #E8B0AC; background: transparent; border: 1px solid rgba(232,117,111,.42);
+  border-radius: 6px; transition: background .13s, border-color .13s, color .13s; }
+.p-acao-erro:hover { background: rgba(232,117,111,.14); border-color: rgba(232,117,111,.7);
+  color: #F6D2CF; }
+
+
+/* ---------------- seguir a pasta do projeto ---------------- */
+.checa-aj { margin-top: 9px; font-size: 11px; }
+/* O caminho pode ser longo e vir de um volume externo; quebrar em qualquer
+   ponto e melhor que estourar a largura da janela de Ajustes. */
+.auto-alvo {
+  margin: 5px 0 0 18px; font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #8A8A96; word-break: break-all;
+}
+.auto-alvo.ok  { color: #AFBE6A; }
+.auto-alvo.err { color: #E8756F; }
+
+
+.nota-aj{margin-top:6px;font-size:10.5px;line-height:1.5;color:#8A8A96}
+
+
+/* ---------------- FAIXA DE VERSAO NOVA ----------------
+
+   VERDE, E NAO CINZA (1.8.6).
+
+   Ela nasceu cinza aqui, com o argumento de que "nao e um alerta, e um
+   recado, e recado nao precisa de cor propria". O argumento valia dentro
+   deste painel -- e nao valia fora dele: o Time Tracker e o BlackNote+ usam
+   verde na mesma faixa, e quem tem os tres instalados aprendeu a reconhecer
+   o aviso pela cor. Cinza no meio de um painel cinza vira mais uma linha.
+
+   As cores sao as MESMAS do Time Tracker, nao aproximacoes: e a unica forma
+   de os tres continuarem parecidos quando um deles for mexido de novo. */
+.upd{display:flex;align-items:center;gap:8px;padding:7px 11px;
+  background:linear-gradient(180deg,#243021,#1d2620);border-bottom:1px solid #33422f;
+  font-size:11px;color:#cfe0c6;flex:0 0 auto}
+.upd[hidden]{display:none}
+.upd-p{flex:1;min-width:0;display:flex;align-items:baseline;gap:7px;overflow:hidden}
+.upd-p b{color:#a8d49a;font-weight:600;flex:0 0 auto}
+/* A NOTA e o que pode sumir numa janela estreita -- o numero, nao. */
+.upd-p span{color:#8ea886;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.upd-bt{height:21px;padding:0 11px;border-radius:5px;background:#4a6b3c;border:1px solid #5c8149;
+  color:#eaf3e6;font:11px -apple-system,"Segoe UI",Roboto,sans-serif;cursor:pointer;flex:0 0 auto}
+.upd-bt:hover{background:#587f47}
+.upd-nao,.upd-ver{height:21px;padding:0 9px;border-radius:5px;background:transparent;
+  border:1px solid #3a4a35;color:#8ea886;
+  font:11px -apple-system,"Segoe UI",Roboto,sans-serif;cursor:pointer;flex:0 0 auto}
+.upd-nao:hover,.upd-ver:hover{color:#cfe0c6;border-color:#4e6446}
+.upd-ver[hidden]{display:none}
+/* A lista do "O que mudou" e um degrau mais escura que a faixa, para nao
+   competir com ela -- e ainda dentro do verde, para as duas serem lidas
+   como a mesma coisa. */
+.upd-lista{margin:0;padding:4px 12px 10px 28px;list-style:disc;
+  background:#1b241d;border-bottom:1px solid #2c3a28;
+  color:#9db593;font-size:11.5px;line-height:1.6;max-height:150px;overflow:auto;flex:0 0 auto}
+.upd-lista[hidden]{display:none}
+.upd-lista li{margin:3px 0}
+
+/* ===================================================================
+   A PREVIA DA BUSCA  (1.9.0)
+   =================================================================== */
+
+/* ANTES DE QUALQUER COISA, UM CONSERTO QUE NAO E DA PREVIA.
+
+   O body do painel e `min-height:100vh`, e min-height nao limita nada: com os
+   20 resultados de verdade na lista o corpo estica para 1061px e quem passa a
+   rolar e o DOCUMENTO, nao a lista -- exatamente o que o comentario da
+   .busca-lista diz que nao pode acontecer, e acontecia desde a 1.8.8. Medido
+   no Chromium na 1.8.10: corpo 1061, lista 980, a lista sem rolagem propria e
+   o documento com ela.
+
+   A altura definida SO na tela da busca. As outras telas do painel dependem de
+   poder crescer, e travar o body inteiro em 100vh mexeria em todas elas.
+
+   Sem isto a barra da previa nasceria em y=375 numa janela de 370 -- fora da
+   tela, e o recurso pareceria nao ter sido implementado. */
+body.buscando { height: 100vh; }
+
+/* O PLAY SOBRE A MINIATURA, e nao um botao a mais na linha.
+
+   A linha da busca ja tem quatro coisas (capa, titulo, canal, duracao) numa
+   altura de 36px. Um quinto elemento apertaria o titulo, que e o que se le.
+   A capa e o unico lugar que ja existe, tem tamanho fixo e nao serve para
+   mais nada -- e cobri-la com o play e o gesto que todo mundo conhece.
+
+   ELE SO APARECE na linha sob o mouse, na focada pelo teclado e na que esta
+   tocando. Seis plays desenhados de uma vez viram ruido, e a lista existe
+   para ler titulo. */
+.busca-capa { position: relative; }
+.pl-capa-bt {
+  position: absolute; inset: 0;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.52); color: #fff;
+  border: 0; padding: 0; cursor: pointer;
+}
+.pl-capa-bt svg { width: 16px; height: 16px; pointer-events: none; }
+.busca-item:hover .pl-capa-bt,
+.busca-item.foco  .pl-capa-bt,
+.busca-item.tocando .pl-capa-bt { display: flex; }
+.busca-item.tocando .busca-tit { color: #fff; }
+
+/* O botao mostra UM dos dois desenhos. Trocar o innerHTML a cada play daria o
+   mesmo resultado com HTML remontado quatro vezes por minuto; a classe troca
+   qual dos dois <svg> aparece, e os dois ja estao no DOM. */
+.pl-capa-bt .ic-pausa, .pl-bt .ic-pausa { display: none; }
+.pl-capa-bt.tocando .ic-play,  .pl-bt.tocando .ic-play  { display: none; }
+.pl-capa-bt.tocando .ic-pausa, .pl-bt.tocando .ic-pausa { display: block; }
+
+/* A BARRA */
+.pl-barra {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px 9px;
+  background: var(--fundo2);
+  border-top: 1px solid var(--borda);
+}
+.pl-barra.oculto { display: none !important; }
+
+.pl-bt {
+  flex: 0 0 auto; width: 30px; height: 30px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; border-radius: 3px;
+  color: var(--fraco); cursor: pointer;
+}
+.pl-bt svg { width: 19px; height: 19px; pointer-events: none; }
+.pl-bt:hover { background: rgba(255,255,255,.09); color: var(--texto); }
+.pl-bt.tocando { color: #AFBE6A; }
+
+.pl-meio { flex: 1 1 auto; min-width: 0; }
+.pl-tit {
+  font-size: 10px; color: var(--texto);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 5px;
+}
+
+/* A REGUA tem 4px de desenho e 16px de area de clique.
+
+   Uma regua de 4px e impossivel de acertar com o mouse, e engordar o desenho
+   para caber a mira faria dela uma barra de progresso -- que e outra coisa. O
+   ::before estende a area sem tocar no que se ve. */
+.pl-regua {
+  position: relative; height: 4px; border-radius: 2px;
+  background: var(--trilha-bg); cursor: pointer;
+}
+.pl-regua::before { content: ""; position: absolute; left: 0; right: 0; top: -6px; bottom: -6px; }
+.pl-cheio {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+  border-radius: 2px; background: #AFBE6A;
+}
+.pl-alca {
+  position: absolute; top: 50%; left: 0;
+  width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%; background: #fff;
+}
+/* Enquanto a URL nao chegou nao ha onde arrastar: a regua fica apagada e o
+   cursor volta ao normal, para o clique nao prometer o que nao entrega. */
+.pl-barra.carregando .pl-regua { opacity: .4; cursor: default; }
+.pl-barra.carregando .pl-alca  { display: none; }
+
+.pl-tempo {
+  flex: 0 0 auto; font-size: 10px; color: var(--texto);
+  font-variant-numeric: tabular-nums; text-align: right; line-height: 1.35;
+}
+.pl-tempo i { display: block; font-style: normal; color: var(--fraco); }
+
+/* O VOLUME DA PREVIA  (1.9.0)
+
+   So o alto-falante fica parado na barra; a regua abre com o mouse em cima.
+   Medido no Chromium: com a regua sempre visivel, a do TEMPO cai de 502 para
+   422px. Numa barra de 640px isso e o suficiente para o arrasto do tempo ficar
+   pior -- e o tempo e o que se usa o tempo todo, enquanto o volume se ajusta
+   uma vez.
+
+   A transicao e de LARGURA, e nao de display. display nao anima, e o salto
+   faria a regua do tempo mudar de tamanho de uma vez, no meio do arrasto. */
+.pl-vol { display: flex; align-items: center; gap: 5px; flex: 0 0 auto; color: var(--fraco); }
+.pl-mute {
+  width: 20px; height: 20px; padding: 0; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; border-radius: 3px; color: inherit; cursor: pointer;
+}
+.pl-vol .tc-ic { width: 11px; height: 11px; pointer-events: none; }
+.pl-mute:hover { background: rgba(255,255,255,.09); color: var(--texto); }
+.pl-mute.mudo { color: var(--vermelho); }
+/* O MESMO accent-color do tocador de baixo. Dois brancos diferentes na mesma
+   janela sao vistos como defeito antes de serem vistos como escolha. */
+.pl-vol input { accent-color: #FFF; width: 0; opacity: 0; transition: width .16s ease, opacity .16s ease; }
+.pl-vol:hover input, .pl-vol input:focus { width: 72px; opacity: 1; }
+
+/* A BARRA SOME ENQUANTO O PAINEL ANALISA  (1.9.4)
+
+   O som continua -- e essa a razao de a previa nao parar ao escolher --, mas o
+   controle sai da tela. Naquela tela ja ha o "Analisando..." e a barra de
+   progresso dizendo que algo esta acontecendo; a barra do tocador repetia esse
+   recado e ainda pedia atencao para uma faixa que esta prestes a ser
+   substituida pelo painel inteiro.
+
+   SO ENQUANTO ANALISA, e essa e a parte que faz isso nao custar nada: se a
+   analise falhar, a classe `analisando` sai junto com o erro, e a barra volta
+   com o botao de pausa. O unico momento sem controle na tela e o momento em
+   que o proprio painel esta chegando. */
+body.analisando #previaBarra { display: none !important; }
+
+/* ===================================================================
+   O VIDEO NO LUGAR DA FICHA  (1.9.5)
+   =================================================================== */
+
+/* 640 x 360: a largura inteira do painel, na proporcao que o YouTube entrega.
+   Medido no Chromium: a janela vai de 370 para 674px. */
+/* A JANELA E A IMAGEM CRESCEM JUNTAS  (1.9.12)
+
+   O painel ja pedia animacao ao sistema -- o setContentSize do main.js manda
+   `true` no terceiro argumento, e o macOS anima a janela. O que saltava era o
+   CONTEUDO: a imagem aparecia inteira no primeiro quadro e a janela vinha
+   atras, o que le como falha de desenho, e nao como uma janela crescendo.
+
+   Agora a secao anima a propria altura no mesmo tempo. NAO ha display:none
+   aqui: display nao anima, e trocar para none no fim cortaria o ultimo quadro
+   da transicao. Altura zero com overflow escondido esconde igual, e volta
+   crescendo.
+
+   224ms e o tempo do sistema para uma janela desse tamanho -- mais rapido, a
+   janela ainda esta se movendo quando a imagem ja chegou; mais lento, a imagem
+   fica esperando a janela. */
+.video {
+  flex: 0 0 auto; background: #131316;
+  height: 0; overflow: hidden; border-bottom: 0 solid var(--borda);
+  transition: height .224s cubic-bezier(.22,.9,.3,1), border-bottom-width .224s;
+}
+body.com-video #video { height: 361px; border-bottom-width: 1px; }
+
+/* Quem NAO tem imagem carregada nao anima nada: a secao nem entra na conta. */
+.video.oculto { height: 0 !important; border-bottom-width: 0 !important; }
+.video-caixa { position: relative; width: 640px; height: 360px; background: #000; overflow: hidden; }
+.video-caixa video { width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
+
+/* A FICHA FICA  (1.9.10).
+
+   Ela saia quando o video aparecia, e o titulo era escrito por cima da imagem,
+   num veu. Na pratica nao se lia: sobre um quadro claro o texto some, e sobre
+   um escuro ele compete com a cena. Quem precisa do nome precisa dele legivel,
+   e a ficha ja faz isso ha versoes -- com a miniatura e a duracao junto.
+
+   Agora o nome mora num lugar so: a ficha. O veu sobre a imagem foi removido
+   em vez de convivermos com dois. */
+
+.video-estado {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 24px; text-align: center;
+  font-size: 11px; color: #9A9AA6; background: #0C0C0F;
+}
+.video-estado.oculto { display: none !important; }
+.video-estado.erro { color: var(--vermelho); }
+
+/* O AVISO NO LUGAR DO TEMPO, enquanto o endereco da previa nao chega  (1.9.6) */
+.pl-buscando { flex: 0 0 auto; font-size: 10px; color: var(--fraco); white-space: nowrap; }
+.pl-buscando.oculto, .pl-tempo.oculto { display: none !important; }

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- DaVinci Resolve Workflow Integration manifest (Studio).
+     Direct Download - audio de link direto para o Media Pool. @jhaimesfilmes -->
+<BlackmagicDesign>
+  <Plugin>
+    <Id>com.jhaimesfilmes.directdownload</Id>
+    <Name>Direct Download</Name>
+    <Version>2.3.8</Version>
+    <Description>Cola um link, ve a forma de onda, marca o trecho arrastando e manda o audio (WAVE ou MP3) direto para o Media Pool do projeto aberto. Video opcional.</Description>
+    <FilePath>main.js</FilePath>
+  </Plugin>
+</BlackmagicDesign>

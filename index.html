@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<!-- CSP: nada de inline, nada de rede.
+     O painel nao carrega NADA de fora — quem fala com a internet e o yt-dlp,
+     num processo separado. Isto tambem impede que um titulo de video com HTML
+     dentro vire codigo aqui.
+     Ao testar em jsdom, lembre: o jsdom NAO aplica CSP, entao um mockup que
+     passa no teste pode estar morto no painel. -->
+<!-- O https://*.googlevideo.com no media-src e a previa da busca (1.9.0), e
+     ele e a UNICA abertura desta politica: img-src, connect-src e o resto
+     continuam presos ao 'self'. As miniaturas seguem vindo por curl para um
+     arquivo em disco, como sempre -- o que passou a falar com o Google e o
+     <audio>, e so ele.
+
+     Nao ha `https:` solto aqui de proposito: com o host escrito, uma URL de
+     qualquer outro lugar continua sendo recusada pelo Chromium. -->
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data: file:; style-src 'self'; script-src 'self'; media-src 'self' file: blob: https://*.googlevideo.com;">
+<title>Direct Download</title>
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+<!-- A FAIXA DE VERSAO NOVA.
+
+     FAIXA, e nao janela modal. Uma janela que bloqueia obriga a decidir antes
+     de fazer o que a pessoa veio fazer -- e ela aprende a fechar sem ler. A
+     faixa pergunta, cabe numa linha, e o "Agora nao" tem o mesmo peso do
+     "Baixar": nao e uma escolha que eu deva empurrar.
+
+     FICA FORA do body.na-partida de proposito: se houver versao nova, ela
+     aparece tambem na tela limpa.
+
+     E FICA ANTES DE TUDO NO DOM (1.8.6). O body e flex-direction:column,
+     entao a ordem aqui E a ordem na tela. Ela morava depois do #partida e
+     por isso nascia no RODAPE da janela limpa -- enquanto no Time Tracker e
+     no BlackNote+ ela e a primeira coisa da janela. Quem usa mais de um
+     plugin esperava o aviso no mesmo lugar, e nao estava. -->
+<div class="upd" id="upd" hidden>
+  <span class="upd-p">
+    <b id="upd-v">—</b>
+    <span id="upd-nota"></span>
+  </span>
+  <button class="upd-ver" id="upd-ver" data-i18n="oQueMudou" hidden>O que mudou</button>
+  <button class="upd-bt"  id="upd-baixar" data-i18n="updBaixar">Baixar</button>
+  <button class="upd-nao" id="upd-depois" data-i18n="updDepois">Agora nao</button>
+</div>
+<ul class="upd-lista" id="upd-lista" hidden></ul>
+
+<!-- A TELA DE PARTIDA.
+
+     Ela existe porque o painel vazio era pior que inutil: mostrava a ficha sem
+     titulo, a onda sem onda e a barra de botoes desligada, e a pessoa nao tinha
+     como saber se aquilo era o app carregando, quebrado, ou esperando algo.
+
+     Quem manda nela e a classe .na-partida no <body>, e nao um "oculto" em
+     cada peca. A diferenca importa: o analisar() remove "oculto" da ficha e da
+     linha no meio do caminho, e com o controle peca a peca a ordem das
+     chamadas decidiria o que aparece. Com a classe no body, nao decide. -->
+<div id="partida" class="partida">
+  <!-- A LUPA DA TELA LIMPA  (1.8.8)
+
+       Canto superior direito, e nao ao lado do titulo: a tela de partida tem um
+       centro de gravidade -- o icone, o "Cole um link" e a dica -- e por ele
+       passa a leitura inteira. Um segundo botao ali no meio faria a pessoa
+       escolher entre dois caminhos antes de entender que existe um caminho
+       obvio. No canto, ela e a saida para quem NAO tem o link. -->
+  <!-- AS DUAS ACOES DA TELA LIMPA MORAM JUNTAS, NUMA BARRA  (1.8.9)
+
+       Elas sao do mesmo tipo: coisas que voce faz ANTES de ter um link. Dois
+       botoes soltos em cantos diferentes fariam parecer que uma pesa mais que
+       a outra.
+
+       SEM CONTORNO (.bt-nu): so os icones, e a caixa aparece com o mouse em
+       cima. Na tela limpa nao ha nada competindo por atencao -- dois retangulos
+       no canto pesam mais do que o que eles fazem. O hover devolve a area
+       clicavel para quem for clicar. -->
+  <div class="p-acoes">
+    <button id="btLupaPartida" class="bt bt-icone bt-nu p-lupa" data-i18n-title="buscar">
+      <svg class="ic-topo" viewBox="0 0 20 20" aria-hidden="true">
+        <circle cx="8.6" cy="8.6" r="5.6" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M12.8 12.8 17.2 17.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <!-- O MESMO icone da pasta da barra de baixo, e o mesmo menu no botao
+         direito. So o clique esquerdo difere, e por um motivo: la embaixo ja
+         existe um arquivo, e abrir a pasta e o que se quer; aqui ainda nao ha
+         nada, e o que se quer e APONTAR onde vai cair. -->
+    <button id="btPastaPartida" class="bt bt-icone bt-nu" data-i18n-title="escolherDestino">
+      <svg class="ic-topo" viewBox="0 0 20 16" aria-hidden="true"><path fill="currentColor" d="M2 2.5A1.5 1.5 0 0 1 3.5 1h3.9c.5 0 .97.24 1.25.65l.7 1.02c.1.14.25.23.42.23H16.5A1.5 1.5 0 0 1 18 4.4v9.1a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 2 13.5v-11z"/></svg>
+    </button>
+    <!-- DESTRAVAR O DOWNLOAD, NA TELA INICIAL  (2.1.2)
+
+         Quem cola um link e leva um erro fica preso na tela inicial: o botao
+         de Ajustes mora no #topo, e o #topo tem display:none aqui. E a saida
+         para o bloqueio do YouTube ("Sign in to confirm you're not a bot") sao
+         os Cookies do navegador, que moram justamente la dentro. Um chamado
+         inteiro morreu nessa parede.
+
+         ELE NAO ABRE OS AJUSTES: abre a MESMA janela que aparece sozinha
+         quando o bloqueio acontece, com os dois controles que destravam um
+         download -- os cookies e o update do yt-dlp. Uma porta a mais para a
+         mesma sala, e nao uma sala nova.
+
+         POR ISSO O ICONE NAO E UMA ENGRENAGEM. Um botao com o desenho e o nome
+         de Ajustes que abre outra coisa e a pior das duas opcoes: promete o
+         painel inteiro e entrega dois controles. A seta circular diz
+         "atualizar", que e o que ele faz.
+
+         E NAO E A SETA PARA BAIXO, que seria o parente obvio: ela ja e o ICONE
+         DO APP, a poucos centimetros daqui na mesma tela -- e significa
+         BAIXAR, que e a acao principal. Um botao com esse desenho prometeria
+         comecar um download, e o que ele abre e a janela de consertar o
+         baixador. -->
+    <button id="btDestrava" class="bt bt-icone bt-nu" data-i18n-title="destravar">
+      <svg class="ic-topo" viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M16.4 6.6A7.2 7.2 0 1 0 17.2 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M16.9 2.6v4.2h-4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+  <div class="p-ico">
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <rect width="100" height="100" rx="22" fill="#2A2A33"/>
+      <g id="pSeta" class="p-seta"><path d="M50 66 L28 44 h11 V20 h22 v24 h11 Z"
+         fill="#AFBE6A" stroke="#AFBE6A" stroke-width="6" stroke-linejoin="round"/></g>
+      <rect id="pBarra" class="p-barrinha" x="25" y="76" width="50" height="8" rx="4" fill="#AFBE6A"/>
+    </svg>
+  </div>
+  <h4 id="pTitulo" data-i18n="colarTitulo">Paste a link</h4>
+  <!-- Sem as caixinhas de tecla: uma frase so, no mesmo cinza. O modificador
+       fica num span proprio porque no Windows ele vira "Ctrl". -->
+  <p id="pSub"><span id="pMod">&#8984;</span>+V <span data-i18n="colarSub">to start</span></p>
+  <div id="pRail" class="p-rail oculto"><i id="pRailFill"></i></div>
+  <div id="pErro" class="p-erro oculto"></div>
+  <!-- A SAIDA DO ERRO, QUANDO EXISTE UMA  (2.1.2)
+
+       Botao proprio, e nao um <a> dentro do #pErro: o texto do erro vem do
+       yt-dlp, e o #pErro e preenchido com textContent justamente para que nada
+       vindo da internet vire HTML. Um link injetado ali obrigaria a abrir essa
+       porta por causa de uma frase nossa.
+
+       Nasce escondido e so aparece quando a falha tem uma saida conhecida.
+       Botao que aparece em todo erro vira decoracao e para de ser lido. -->
+  <button id="pAcaoErro" class="p-acao-erro oculto" data-i18n="abrirCookies">Ligar os cookies nos Ajustes</button>
+  <!-- ONDE VAI CAIR. Nasce escondida e so aparece quando ha destino conhecido:
+       mostra-la vazia obrigaria a inventar um texto para o caso de nao haver
+       nenhum, e "nenhuma pasta escolhida" ocupa espaco para dizer nada. -->
+  <p id="pPasta" class="p-pasta oculto">
+    <svg viewBox="0 0 20 16" aria-hidden="true"><path fill="currentColor" d="M2 2.5A1.5 1.5 0 0 1 3.5 1h3.9c.5 0 .97.24 1.25.65l.7 1.02c.1.14.25.23.42.23H16.5A1.5 1.5 0 0 1 18 4.4v9.1a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 2 13.5v-11z"/></svg>
+    <i id="pPastaTxt"></i>
+  </p>
+</div>
+
+
+<!-- A BUSCA  (1.8.8)
+
+     QUEM MANDA E A CLASSE .buscando NO <body>, pelo mesmo motivo que a tela de
+     partida e comandada por .na-partida: com o controle peca a peca, a ordem
+     das chamadas decidiria o que aparece. Com a classe no body, nao decide.
+
+     TOMA A JANELA INTEIRA em vez de abrir por cima. A busca tem entrada, lista
+     rolavel e estado; empilhar isso sobre a ficha num painel de 370px de altura
+     produziria duas coisas disputando a mesma area. Fechar devolve exatamente o
+     que estava antes -- a classe .na-partida nao e tocada aqui.
+
+     A LISTA NASCE VAZIA e e preenchida pelo app.js com createElement e
+     textContent, nunca innerHTML: titulo e canal vem da internet. -->
+<section id="busca" class="busca">
+  <div class="busca-topo">
+    <svg class="ic-topo busca-ic" viewBox="0 0 20 20" aria-hidden="true">
+      <circle cx="8.6" cy="8.6" r="5.6" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M12.8 12.8 17.2 17.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+    <input id="buscaCampo" class="campo-link" type="text" spellcheck="false"
+           data-i18n-ph="buscarPh" placeholder="Search YouTube">
+    <button id="btBuscaFechar" class="bt bt-icone" data-i18n-title="fechar">
+      <svg class="ic-topo" viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M5 5 15 15 M15 5 5 15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+  <div id="buscaEstado" class="busca-estado" data-i18n="buscarDica">Type to search</div>
+  <ul id="buscaLista" class="busca-lista"></ul>
+
+</section>
+
+
+<header id="topo" class="topo">
+  <span class="marca">Direct Download</span>
+  <!-- Sem botao Analisar: colar E o gatilho. Cmd+V em qualquer lugar do
+       painel carrega o link, e o campo continua aceitando Enter para quem
+       preferir digitar. -->
+  <input id="link" class="campo-link" type="text" spellcheck="false"
+         data-i18n-ph="colar" placeholder="Paste the link (Cmd+V)">
+  <!-- A LUPA VEM PRIMEIRO, colada no campo, porque ela e do MESMO assunto que
+       ele: as duas produzem um link. Teclado, engrenagem e pin sao ajustes do
+       painel, e ficam depois. -->
+  <button id="btLupa" class="bt bt-icone" data-i18n-title="buscar">
+    <svg class="ic-topo" viewBox="0 0 20 20" aria-hidden="true">
+      <circle cx="8.6" cy="8.6" r="5.6" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M12.8 12.8 17.2 17.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </svg>
+  </button>
+  <!-- Os tres do BlackSlice, nesta ordem: teclado, engrenagem, pin.
+       Desenhados em SVG a partir dos SF Symbols keyboard / gearshape / pin. -->
+  <button id="btAtalhos" class="bt bt-icone" data-i18n-title="atalhos">
+    <svg class="ic-topo" viewBox="0 0 24 16" aria-hidden="true">
+      <rect x=".7" y=".7" width="22.6" height="14.6" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.4"/>
+      <g fill="currentColor">
+        <rect x="3.4" y="3.6" width="2" height="2" rx=".4"/><rect x="6.9" y="3.6" width="2" height="2" rx=".4"/>
+        <rect x="10.4" y="3.6" width="2" height="2" rx=".4"/><rect x="13.9" y="3.6" width="2" height="2" rx=".4"/>
+        <rect x="17.4" y="3.6" width="3.2" height="2" rx=".4"/>
+        <rect x="3.4" y="6.9" width="2" height="2" rx=".4"/><rect x="6.9" y="6.9" width="2" height="2" rx=".4"/>
+        <rect x="10.4" y="6.9" width="2" height="2" rx=".4"/><rect x="13.9" y="6.9" width="2" height="2" rx=".4"/>
+        <rect x="17.4" y="6.9" width="3.2" height="2" rx=".4"/>
+        <rect x="6.9" y="10.2" width="10.2" height="2" rx=".6"/>
+      </g>
+    </svg>
+  </button>
+  <button id="btAjustes" class="bt bt-icone" data-i18n-title="ajustes">
+    <svg class="ic-topo" viewBox="0 0 20 20" aria-hidden="true">
+      <path fill="currentColor" d="M8.3 1.4h3.4l.35 2.2c.55.2 1.06.5 1.5.86l2.07-.83 1.7 2.94-1.73 1.4c.05.28.08.57.08.86s-.03.58-.08.86l1.73 1.4-1.7 2.94-2.07-.83c-.44.37-.95.66-1.5.86l-.35 2.2H8.3l-.35-2.2a5.6 5.6 0 0 1-1.5-.86l-2.07.83-1.7-2.94 1.73-1.4A5.7 5.7 0 0 1 4.33 10c0-.29.03-.58.08-.86l-1.73-1.4 1.7-2.94 2.07.83c.44-.37.95-.66 1.5-.86zM10 7.4a2.6 2.6 0 1 0 0 5.2 2.6 2.6 0 0 0 0-5.2z"/>
+    </svg>
+  </button>
+  <button id="btPin" class="bt bt-icone" data-i18n-title="fixar">
+    <svg class="ic-topo" viewBox="0 0 20 20" aria-hidden="true">
+      <path fill="currentColor" d="M12.8 1.6a1 1 0 0 1 1.4 0l4.2 4.2a1 1 0 0 1-.7 1.7h-1.5l-2.6 3.3.5 2.4a1 1 0 0 1-1.7.9l-2.7-2.7-4.3 4.9a.6.6 0 0 1-.9-.8l4.8-4.4-2.7-2.7a1 1 0 0 1 .9-1.7l2.4.5 3.3-2.6V3.1a1 1 0 0 1 .3-.7z"/>
+    </svg>
+  </button>
+</header>
+
+<section id="ficha" class="ficha oculto">
+  <!-- A CAPA vem do proprio yt-dlp (-J traz a URL) e e BAIXADA junto com o
+       audio, para um arquivo local. O painel tem default-src 'self' e nao
+       carrega nada da internet, de proposito: quem fala com a rede aqui e o
+       yt-dlp, num processo separado. Abrir a CSP para o dominio do YouTube so
+       para mostrar uma miniatura seria trocar essa garantia por 20 KB. -->
+  <div id="capa" class="capa oculto"><img id="capaImg" alt=""></div>
+  <div class="ficha-txt">
+    <div id="titulo" class="titulo">—</div>
+    <!-- Esta linha faz dois papeis: mostra o canal quando esta tudo calmo, e
+         vira a linha de estado durante o trabalho. Uma barra so para isso
+         ocuparia espaco o tempo inteiro para dizer nada na maior parte dele. -->
+    <div id="canal" class="canal"></div>
+  </div>
+  <div id="duracao" class="duracao">00:00</div>
+</section>
+
+<!-- O VIDEO, DEBAIXO DA FICHA  (1.9.12)
+
+     A ficha vem PRIMEIRO e o video depois, e nao o contrario: assim a
+     timeline encosta na imagem. Com a ficha no meio, entre o video e a onda,
+     havia uma faixa de texto separando as duas coisas que se olham juntas --
+     a cena e o ponto onde ela esta.
+
+     Ela nasceu no lugar da ficha (1.9.5) e passou a conviver com ela na
+     1.9.10, quando o titulo por cima da imagem se mostrou ilegivel. -->
+<!-- (1.9.5)
+
+     Com a caixa "Video" marcada, a faixa da capa e do titulo vira a imagem do
+     video -- 640x360, a largura inteira do painel -- e a janela cresce de 370
+     para 674px. Assim voce marca In e Out VENDO A CENA.
+
+     ELE E MUDO, e isso nao e economia: o som e o arquivo que ja esta em disco,
+     e e ele que desenha a onda e comanda o In/Out. O video so segue o playhead.
+     Dois audios da mesma faixa tocando defasados seria o pior dos mundos.
+
+     O TITULO VOLTA POR CIMA DA IMAGEM, num veu. A ficha existia para dizer que
+     musica e essa, e a imagem nao diz -- em cima, o titulo nao ocupa altura
+     propria, que e justamente o ponto de trocar a ficha pelo player.
+
+     SEM CONTROLES AQUI. Transporte, tempo e In/Out ja estao na linha de baixo;
+     um segundo conjunto sobre a imagem seria dois controles para a mesma coisa,
+     e um deles ficaria errado no dia em que alguem mexesse so no outro. -->
+<section id="video" class="video oculto">
+  <div class="video-caixa">
+    <video id="videoEl" muted playsinline preload="metadata"></video>
+    <div id="videoEstado" class="video-estado oculto"></div>
+  </div>
+</section>
+
+<section id="linha" class="linha oculto">
+  <div class="pista">
+    <div class="regua">
+      <canvas id="cvRegua"></canvas>
+      <!-- AS PEGAS DO IN E DO OUT.
+
+           A linha vertical vem DENTRO do mesmo SVG do triangulo e desce ate a
+           base da regua, onde emenda com a linha da onda. Foram dois objetos
+           separados por uma versao, e sobrava 1px de vao: a linha tem 2px
+           centrados na posicao, e encostar o triangulo "na posicao" o punha no
+           MEIO da linha. Acertar isso pelo `left` nao para em pe -- a posicao
+           vem de uma porcentagem, e o arredondamento muda com a largura da
+           janela. Peca unica nao tem junta para desalinhar.
+
+           A caixa tem 24px de largura para o triangulo de 13px: alvo pequeno
+           demais e o motivo mais comum de "nao consigo pegar". -->
+      <div id="pegaI" class="pega pega-i" data-i18n-title="marcarIn">
+        <svg viewBox="0 0 13 9" aria-hidden="true">
+          <rect x="0" y="0" width="2" height="9" fill="currentColor"/>
+          <path d="M2 0h11L2 9z" fill="currentColor"/>
+        </svg>
+      </div>
+      <div id="pegaO" class="pega pega-o" data-i18n-title="marcarOut">
+        <svg viewBox="0 0 13 9" aria-hidden="true">
+          <rect x="11" y="0" width="2" height="9" fill="currentColor"/>
+          <path d="M11 0H0l11 9z" fill="currentColor"/>
+        </svg>
+      </div>
+      <!-- A AGULHA DO PLAYHEAD.
+
+           Vem DEPOIS das pegas de In e Out de proposito: sao irmas no mesmo
+           espaco, e quando as tres coincidem quem tem de ficar por cima e a
+           agulha -- e ela que se arrasta o tempo todo.
+
+           Peca unica, pelo mesmo motivo das pegas: o triangulo e a linha num
+           SVG so. Foram dois objetos separados por uma versao nas pegas, e
+           sobrava 1px de vao que nao havia como acertar pelo `left`, porque a
+           posicao vem de porcentagem e o arredondamento muda com a largura da
+           janela.
+
+           A caixa tem 22px para um triangulo de 12px. Alvo pequeno e o motivo
+           mais comum de "nao consigo pegar". -->
+      <div id="agulha" class="agulha" data-i18n-title="moverPlayhead">
+        <svg viewBox="0 0 12 22" aria-hidden="true">
+          <path d="M0 1h12v9.5L6 17 0 10.5z" fill="currentColor"/>
+          <rect x="5" y="16" width="2" height="6" fill="currentColor"/>
+        </svg>
+      </div>
+    </div>
+    <div id="onda" class="onda">
+      <canvas id="cvOnda"></canvas>
+      <div id="veuE" class="veu veu-e"></div>
+      <div id="veuD" class="veu veu-d"></div>
+      <div id="alcaI" class="alca"></div>
+      <div id="alcaO" class="alca"></div>
+      <div id="barraFora" class="barra-fora oculto"><div id="barra" class="barra"></div></div>
+
+      <div class="zoom">
+        <button id="btZmenos" class="bt-z" data-i18n-title="afastar">&minus;</button>
+        <span id="zRot" class="z-rot">1.0x</span>
+        <button id="btZmais" class="bt-z" data-i18n-title="aproximar">+</button>
+        <button id="btZfit" class="bt-z ajustar" data-i18n-title="ajustar">&#10530;</button>
+      </div>
+
+      <div id="rolagem" class="rolagem oculto"><div id="polegar" class="polegar"></div></div>
+    </div>
+
+    <!-- A BARRA DE TIMECODE, do BlackSub: fundo white 0.08, icone de 9px
+         cinza, texto de 10px monoespacado, e a duracao em oliva. -->
+    <div class="barra-tc">
+      <!-- O CONTADOR DA REPRODUCAO, primeiro da esquerda, com o play.fill do
+           BlackSlice. E o unico numero da barra que muda sozinho: os outros
+           tres so mudam quando alguem marca alguma coisa. -->
+      <span class="tc-item">
+        <svg class="tc-ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 2.2 13.4 7.6a.45.45 0 0 1 0 .8L3.5 13.8a.45.45 0 0 1-.7-.4V2.6a.45.45 0 0 1 .7-.4z"/></svg>
+        <span id="agora" class="tc-txt tc-agora">00:00:00:00</span>
+        <!-- OS TRES PRIMEIROS TIMECODES SE DIGITAM (1.9.14). Duplo clique troca
+             o texto pelo campo; Enter aplica, Esc desiste. O campo e irmao do
+             texto, e nao um substituto: assim o pintaSelecao() continua
+             escrevendo no <span> de sempre, mesmo enquanto voce digita. -->
+        <input id="edAgora" class="tc-ed oculto" type="text" inputmode="numeric"
+               maxlength="11" spellcheck="false" data-i18n-title="digiteTc">
+      </span>
+      <span class="tc-item">
+        <svg class="tc-ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 8h8.5l-2.7-2.7 1-1L14.5 8l-5.7 5.7-1-1L10.5 10H2z"/><rect x="0" y="2" width="1.6" height="12"/></svg>
+        <span id="tcIn" class="tc-txt">00:00:00:00</span>
+        <input id="edIn" class="tc-ed oculto" type="text" inputmode="numeric"
+               maxlength="11" spellcheck="false" data-i18n-title="digiteTc">
+      </span>
+      <span class="tc-item">
+        <svg class="tc-ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M14 8H5.5l2.7-2.7-1-1L1.5 8l5.7 5.7 1-1L5.5 10H14z"/><rect x="14.4" y="2" width="1.6" height="12"/></svg>
+        <span id="tcOut" class="tc-txt">00:00:00:00</span>
+        <input id="edOut" class="tc-ed oculto" type="text" inputmode="numeric"
+               maxlength="11" spellcheck="false" data-i18n-title="digiteTc">
+      </span>
+      <span class="tc-item">
+        <svg class="tc-ic" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="9" r="5.6" fill="none" stroke="currentColor" stroke-width="1.4"/><rect x="6" y="0.6" width="4" height="1.6"/><rect x="7.3" y="5.4" width="1.4" height="4.2"/></svg>
+        <span id="tcDur" class="tc-txt tc-dur">00:00:00:00</span>
+      </span>
+      <!-- O icone E o botao de mute, como no BlackSlice: clicar zera o volume
+           e o desenho troca para o alto-falante cortado. -->
+      <span class="tc-vol">
+        <button id="btMute" class="bt-mute" data-i18n-title="mudo">
+          <svg id="icVol" class="tc-ic" viewBox="0 0 16 16" aria-hidden="true"></svg>
+        </button>
+        <input id="vol" type="range" min="0" max="100" value="80">
+      </span>
+    </div>
+  </div>
+
+  <!-- TRANSPORTE, centralizado como no BlackSub. O playhead so faz sentido
+       agora que ha reproducao: antes ele seria enfeite. -->
+  <!-- BARRA UNICA. Transporte a esquerda; formato, video e download a direita.
+
+       Os saltos -10/-5/-1 e +1/+5/+10 sairam: com zoom, mirar o ponto na onda
+       e mais direto do que pular de segundo em segundo, e as setas do teclado
+       continuam pulando 5s para quem precisar. O que se ganhou foi uma linha
+       inteira de altura. -->
+  <!-- A BARRA NASCE VISIVEL, e nao escondida.
+
+       Ela ficou invisivel por duas versoes seguidas, e as duas causas foram
+       de "estado escondido": primeiro um id duplicado fez o remove("oculto")
+       ir para o elemento errado, depois nem isso explicou. Estado que so
+       existe para esconder algo e estado que pode travar no lugar errado.
+
+       Agora ela esta sempre la, e o que muda e o botao: desabilitado ate
+       haver audio. Um controle apagado diz "ainda nao"; uma barra que some
+       nao diz nada. -->
+  <div id="barraAcoes" class="barra">
+    <div class="tr-esq">
+      <!-- TRANSPORTE primeiro, GRUPO DA SELECAO depois.
+
+           Os colchetes abracam o modo porque os tres tratam do mesmo assunto:
+           onde comeca, onde termina, e se o trecho vale. O transporte nao tem
+           nada a ver com isso, e por isso vem separado -- sem o respiro entre
+           eles, sete botoes iguais em fila viram uma coisa so. -->
+      <span class="grupo-tr">
+        <button id="btVolta" class="bt-tr" data-i18n-title="voltar1">
+          <svg class="ic-tr" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M9.6 3.1a.5.5 0 0 1 .8.4v9a.5.5 0 0 1-.8.4L4.9 8.4a.5.5 0 0 1 0-.8zM3 3.4h1.5v9.2H3z"/></svg>
+        </button>
+        <button id="btStop" class="bt-tr" data-i18n-title="parar">
+          <svg class="ic-tr" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1.4" fill="currentColor"/></svg>
+        </button>
+        <button id="btPlay" class="bt-tr" data-i18n-title="tocar">
+          <svg class="ic-play" viewBox="0 0 16 16" aria-hidden="true"></svg>
+        </button>
+        <button id="btFrente" class="bt-tr" data-i18n-title="frente1">
+          <svg class="ic-tr" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M6.4 3.1a.5.5 0 0 0-.8.4v9a.5.5 0 0 0 .8.4l4.7-4.5a.5.5 0 0 0 0-.8zM11.5 3.4H13v9.2h-1.5z"/></svg>
+        </button>
+      </span>
+
+      <span class="grupo-sel">
+        <button id="btIn" class="bt-tr bt-marca" data-i18n-title="marcarIn">[</button>
+        <!-- TRIM, e o rotulo nao troca mais.
+
+             Ele alternava entre "All" e "I/O", e rotulo que troca obriga a ler
+             para saber onde voce esta -- pior, "All" descrevia o estado
+             CONTRARIO ao que estava ligado. Agora o nome e fixo e quem diz o
+             estado e a lampada: aceso, o trecho vale; apagado, vai inteiro. -->
+        <button id="btTudo" class="bt-tr bt-tudo" data-i18n-title="trimDica">Trim</button>
+        <button id="btOut" class="bt-tr bt-marca" data-i18n-title="marcarOut">]</button>
+      </span>
+    </div>
+
+    <div class="tr-dir">
+      <!-- O SELETOR RESPONDE UMA PERGUNTA SO: O QUE VAI BAIXAR  (1.9.8)
+
+           Antes eram duas perguntas na mesma linha, e uma delas com uma
+           caixinha: "WAVE ou MP3" (em que formato) e "Video" (o que). Agora e
+           AUDIO ou VIDEO, e a QUALIDADE -- o formato do audio e a altura do
+           video -- mora nos Ajustes, que e onde a altura ja morava.
+
+           E ele manda tambem na IMAGEM: em VIDEO a janela do player aparece,
+           em AUDIO ela some. A fonte do video NAO e trocada nessa hora -- ela
+           e carregada assim que o endereco chega, escolhido ou nao, e o
+           seletor so mostra ou esconde. Era a troca de fonte que fazia "ouvir
+           em audio e depois mudar para video" acabar sem imagem. -->
+      <span id="selFormato" class="seletor">
+        <span class="op op-on" data-fmt="AUDIO" data-i18n="fmtAudio">Audio</span>
+        <span class="op" data-fmt="VIDEO" data-i18n="fmtVideo">Video</span>
+      </span>
+
+      <!-- A caixa "Video" saiu daqui: quem responde por ela agora e o seletor
+           ao lado. Duas perguntas viraram uma. -->
+
+      <!-- A CAIXA "TIMELINE" SAIU DAQUI E FOI PARA OS AJUSTES  (2.3.1)
+
+           Ela nunca foi uma decisao por download: o estado dela ja era
+           lembrado entre sessoes, em localStorage (`dd_tl`). Ou seja, ja era
+           uma preferencia ocupando um lugar na barra mais apertada do painel.
+
+           O COMPORTAMENTO NAO MUDA. Com a opcao ligada, o arquivo continua
+           indo para a timeline sozinho a cada download -- o mesmo caminho de
+           zero gestos que ela sempre foi. O que mudou e onde se liga.
+
+           E ISSO IMPORTA PARA O ROTULO NOVO DO BOTAO: o arraste virou a
+           palavra do botao verde, mas ele NAO virou o unico caminho. Quem tem
+           a opcao ligada nem precisa arrastar -- o que e a rede embaixo do
+           `startDrag`, que nunca foi confirmado no Windows. -->
+
+      <!-- A ALCA so aparece com o botao verde (.feito), e e ela que anuncia
+           que o botao pode ser arrastado para a timeline. O cursor tambem
+           muda, mas cursor exige passar o mouse por cima -- e quem baixa e vai
+           direto para o Resolve nunca passa. -->
+      <button id="btDownload" class="bt-download">
+        <i class="alca-ar" aria-hidden="true"></i>
+        <svg id="icDownload" class="ic" viewBox="0 0 22 16" aria-hidden="true"></svg>
+        <span id="rotulo" data-i18n="baixarBt">DOWNLOAD</span>
+      </button>
+      <button id="btPasta" class="bt-pasta" data-i18n-title="abrirPasta">
+        <svg class="ic" viewBox="0 0 20 16" aria-hidden="true"><path fill="currentColor" d="M2 2.5A1.5 1.5 0 0 1 3.5 1h3.9c.5 0 .97.24 1.25.65l.7 1.02c.1.14.25.23.42.23H16.5A1.5 1.5 0 0 1 18 4.4v9.1a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 2 13.5v-11z"/></svg>
+      </button>
+    </div>
+  </div>
+</section>
+
+<div id="credito" class="credito oculto">(Developed by Jhaimes Filmes)</div>
+
+<!-- A BARRA DA PREVIA  (1.9.0)
+
+     FILHA DO <body>, e nao da <section id="busca">. Ela nasceu la dentro, e
+     enquanto a previa parava ao escolher a faixa isso bastava. Deixando o som
+     seguir durante o "analisando", a barra dentro da busca ficaria ESCONDIDA
+     junto com ela -- musica tocando sem nenhum botao na tela para calar, que
+     e o tipo de coisa que faz a pessoa procurar o botao de fechar do painel.
+
+     Como ultima filha do body ela encosta no pe em qualquer tela, porque a
+     secao do meio (#busca ou #partida) e sempre `flex:1`.
+
+     Ela fica fora da lista que rola pelo motivo de sempre: a lista rola, e uma
+     barra dentro dela sumiria justamente quando a pessoa desce para comparar o
+     decimo resultado com o que esta tocando.
+
+     Ela NASCE OCULTA. Uma barra vazia no pe da busca, antes de qualquer
+     play, seria um controle que nao controla nada.
+
+     Sem onda, de proposito: desenhar a faixa exigiria ter a faixa inteira,
+     e a previa nunca tem. A regua diz ONDE voce esta, e nao como a faixa e. -->
+<!-- OS DOIS ICONES DO PLAY MORAM AQUI, num <template>, e a lista os CLONA.
+
+     Nao e enfeite de organizacao: a regra desta casa e que desenhaBusca()
+     nao usa innerHTML com nada alem de "" -- titulo e canal vem da internet,
+     e o t11 confere isso. Montar os icones com innerHTML, mesmo sendo texto
+     nosso, transformaria a regra em "innerHTML, menos quando eu achar que
+     pode", e uma regra com excecao deixa de ser conferivel.
+
+     cloneNode(true) do .content devolve os dois <svg> prontos, e o CSS
+     decide qual dos dois aparece. -->
+<template id="tplPlayPrevia">
+  <svg class="ic-play" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 4.5 15.5 10 7 15.5z" fill="currentColor"/></svg>
+  <svg class="ic-pausa" viewBox="0 0 20 20" aria-hidden="true"><rect x="6.5" y="4.5" width="3" height="11" fill="currentColor"/><rect x="11" y="4.5" width="3" height="11" fill="currentColor"/></svg>
+</template>
+
+<div id="previaBarra" class="pl-barra oculto">
+  <button id="btPrevia" class="pl-bt grande" data-i18n-title="previaTocar">
+    <svg class="ic-play" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 4.5 15.5 10 7 15.5z" fill="currentColor"/></svg>
+    <svg class="ic-pausa" viewBox="0 0 20 20" aria-hidden="true"><rect x="6.5" y="4.5" width="3" height="11" fill="currentColor"/><rect x="11" y="4.5" width="3" height="11" fill="currentColor"/></svg>
+  </button>
+  <div class="pl-meio">
+    <div id="previaTit" class="pl-tit"></div>
+    <div id="previaRegua" class="pl-regua">
+      <i id="previaCheio" class="pl-cheio"></i>
+      <b id="previaAlca" class="pl-alca"></b>
+    </div>
+  </div>
+  <!-- O tempo e o aviso ocupam o MESMO lugar: enquanto o endereco nao chega
+       nao ha tempo para mostrar, e um "00:00 / --:--" parado ali le como
+       tocador quebrado, e nao como tocador buscando. -->
+  <div id="previaTempo" class="pl-tempo"><span id="previaAgora">0:00</span><i id="previaTotal">--:--</i></div>
+  <div id="previaBuscando" class="pl-buscando oculto"></div>
+  <!-- O VOLUME: so o alto-falante parado, e a regua abre com o mouse em cima.
+
+       A barra tem 640px e ja carrega play, titulo, regua e tempo -- tudo o
+       que entra aqui sai da regua do tempo. Medido no Chromium: com a regua
+       de volume sempre visivel a do tempo cai para 422px; assim ela fica com
+       502px, e os 72px do volume so existem enquanto voce esta usando.
+
+       O icone E o botao de mudo, igual ao do tocador de baixo. -->
+  <span class="pl-vol">
+    <button id="btPreviaMudo" class="pl-mute" data-i18n-title="mudo">
+      <svg id="icPreviaVol" class="tc-ic" viewBox="0 0 16 16" aria-hidden="true"></svg>
+    </button>
+    <input id="previaVol" type="range" min="0" max="100" value="80">
+  </span>
+</div>
+
+
+<!-- Nenhuma barra de status. O estado vive na linha do canal, e a barra de
+     progresso aparece sobre a propria onda enquanto baixa. -->
+<span id="estado" class="oculto"></span>
+
+<audio id="som" preload="none"></audio>
+<!-- SEGUNDO <audio>, e nao o mesmo: o #som carrega o arquivo baixado e tem
+     estado proprio (AGORA, o relogio do playhead, o In/Out). Reaproveita-lo
+     para a previa faria dar play num resultado da busca mexer na agulha da
+     onda que esta montada atras da busca. -->
+<audio id="previa" preload="none"></audio>
+
+<div id="telaAtalhos" class="tela oculto">
+  <div class="tela-caixa tela-estreita">
+    <div class="tela-topo">
+      <span data-i18n="tAtalhos">Shortcuts</span>
+      <button id="btFecharAtalhos" class="bt bt-icone">&#10005;</button>
+    </div>
+    <div class="tela-corpo">
+      <div class="atalho"><kbd>space</kbd><span data-i18n="tEspaco">play / pause</span></div>
+      <div class="atalho"><kbd>I</kbd><span data-i18n="tI">mark In here</span></div>
+      <div class="atalho"><kbd>O</kbd><span data-i18n="tO">mark Out here</span></div>
+      <div class="atalho"><kbd>← →</kbd><span data-i18n="tSetas">move one frame</span></div>
+      <div class="atalho"><kbd>⇧ ← →</kbd><span data-i18n="tSetasShift">skip 1 second</span></div>
+      <div class="atalho"><kbd>K</kbd><span data-i18n="tK">stop, back to start</span></div>
+      <div class="atalho"><kbd>A</kbd><span data-i18n="tA">switch All / In-Out</span></div>
+      <div class="atalho"><kbd>= / −</kbd><span data-i18n="tZoom">zoom in / out</span></div>
+      <div class="atalho"><kbd>0</kbd><span data-i18n="tZero">fit the whole waveform</span></div>
+      <!-- Os dois com id: no Windows viram "Ctrl+V" e "Ctrl+Enter".
+           Quem troca e ajustaTeclas(), no fim de aplicaIdioma(). -->
+      <div class="atalho"><kbd id="kColar">⌘V</kbd><span data-i18n="tColar">paste the link and load</span></div>
+      <div class="atalho"><kbd id="kBaixar">⌘↵</kbd><span data-i18n="tBaixar">download</span></div>
+      <!-- Nao e tecla, e por isso vem depois das teclas: e um gesto de mouse.
+           Mora aqui porque esta e a unica tela que responde "o que da para
+           fazer neste painel", e um duplo clique que ninguem descobre e um
+           recurso que nao existe. -->
+      <div class="atalho"><kbd data-i18n="tDuploClique">double-click</kbd><span data-i18n="tTc">type into the first three timecodes</span></div>
+      <div class="atalho"><kbd>Esc</kbd><span data-i18n="tEsc">close this window</span></div>
+      <div class="atalho-nota" data-i18n="tNota">Shortcuts don't work while the cursor is in the link field.</div>
+    </div>
+  </div>
+</div>
+
+<!-- O DIALOGO DO BLOQUEIO  (2.1.2)
+
+     Aparece SOZINHO quando o YouTube responde "Sign in to confirm you're not a
+     bot", e oferece as duas unicas saidas que existem para essa falha: usar os
+     cookies do navegador, ou atualizar o yt-dlp.
+
+     POR QUE UM DIALOGO, E NAO SO A DICA NA TELA: as duas saidas moram nos
+     Ajustes, e a pessoa que levou o erro esta na tela inicial -- onde o botao
+     de Ajustes nem aparecia ate esta versao. Mandar procurar e perder a
+     metade das pessoas no caminho.
+
+     E POR QUE ELE PEDE OK, em vez de simplesmente usar os cookies: ler o
+     navegador de alguem e uma decisao dessa pessoa, nao do programa. O painel
+     explica o que vai fazer e espera. Foi por isso que a opcao nasceu em
+     "nenhum" na 1.9.10, e o dialogo nao desfaz essa escolha -- ele a oferece.
+
+     NAO INSISTE: dizer "agora nao" cala o dialogo pelo resto da sessao. O
+     botao embaixo da mensagem continua ali para quem mudar de ideia, que e a
+     mesma regra da faixa de atualizacao do plugin. -->
+<div id="telaBloqueio" class="tela oculto">
+  <div class="tela-caixa tela-estreita">
+    <!-- O TITULO E NEUTRO porque a janela tem DOIS caminhos de entrada: ela
+         aparece sozinha quando o YouTube bloqueia, e abre a pedido pelo botao
+         da tela inicial. "O YouTube pediu para confirmar que voce nao e um
+         robo" seria uma afirmacao falsa no segundo caso -- e uma janela que
+         afirma o que nao aconteceu ensina a pessoa a nao ler o que ela diz. -->
+    <div class="tela-topo">
+      <span data-i18n="bloqTitulo">Unblock the download</span>
+      <button id="btFecharBloq" class="bt bt-icone">&#10005;</button>
+    </div>
+    <div class="tela-corpo">
+      <!-- O QUE ACONTECEU: so quando houve bloqueio de verdade. Aberta pelo
+           botao, a janela nao tem nada a relatar -- e o paragrafo some, em vez
+           de contar uma historia que nao houve. -->
+      <p id="bloqPorque" class="bloq-txt oculto" data-i18n="bloqTexto">YouTube asked to confirm you are not a bot. This is not a problem with the video: it blocks requests it does not recognise, usually because of a VPN, a shared network, or too many requests in a row.</p>
+
+      <!-- O DESENHO E O DO BLACKSLICE, e as classes sao as que os Ajustes ja
+           usam -- .grupo-tit, .motor-tit, .motor-ver, .motor-sub, .bt-update.
+           Nenhuma classe nova: dois blocos parecidos e diferentes no mesmo
+           painel e o que faz um app parecer costurado a mao. Ver o
+           BlackSlice_v110, na secao COOKIE SOURCE / CORE ENGINE. -->
+
+      <div class="grupo-aj">
+        <div class="grupo-tit" data-i18n="cookies">Cookies do navegador</div>
+        <!-- SEM BOTAO DE CONFIRMAR, como no BlackSlice: escolher NO seletor ja
+             e a decisao. Um "usar" ao lado faria a pessoa escolher duas vezes a
+             mesma coisa -- e o painel ja grava e reaplica no `change`. -->
+        <!-- O CHROME VEM NA FRENTE, e o "Nenhum" foi para o fim (2.1.2).
+
+             E uma SUGESTAO, e nao uma decisao: o painel so passa a usar os
+             cookies quando alguem toca no seletor. Quem nunca abre esta janela
+             continua baixando sem cookie nenhum, e o padrao gravado continua
+             sendo "nenhum" -- o que importa numa maquina SEM Chrome, onde o
+             yt-dlp falha com erro de banco de cookies e derrubaria downloads
+             que hoje funcionam.
+
+             O "Nenhum" fica no fim porque aqui ele e a saida, e nao a entrada:
+             quem abriu esta janela veio destravar alguma coisa. -->
+        <!-- O BOTAO SO APARECE QUANDO HA O QUE APLICAR  (2.1.2).
+
+             Sem ele a escolha nao teria como acontecer: o seletor abre JA em
+             Chrome, e escolher Chrome de novo nao dispara `change` -- o evento
+             compara com o valor do elemento, e ele ja era esse. A pessoa
+             mexeria no seletor, veria o que queria, e nada teria mudado.
+
+             Ele some assim que o escolhido e o em uso sao o mesmo, entao numa
+             janela ja configurada nao ha botao nenhum sobrando. -->
+        <div class="linha-aj">
+        <select id="selCookiesBloq" class="campo-sel">
+          <option value="chrome">Google Chrome</option>
+          <option value="safari">Safari</option>
+          <option value="edge">Microsoft Edge</option>
+          <option value="firefox">Firefox</option>
+          <option value="brave">Brave</option>
+          <option value="" data-i18n="cookiesNenhum">Nenhum</option>
+        </select>
+        <button id="btUsarCookies" class="bt bt-mini oculto" data-i18n="bloqUsar">Usar</button>
+        </div>
+      </div>
+
+      <div class="grupo-aj">
+        <div class="grupo-tit motor-tit">
+          <span>CORE ENGINE</span>
+          <span id="verMotorBloq" class="motor-ver">—</span>
+        </div>
+        <button id="btUpdateBloq" class="bt-update">
+          <svg class="ic-update" viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M16.4 6.6A7.2 7.2 0 1 0 17.2 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M16.9 2.6v4.2h-4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span data-i18n="update">UPDATE</span>
+        </button>
+        <div id="statusBloq" class="status"></div>
+      </div>
+
+      <button id="btAgoraNao" class="bt-linkado" data-i18n="bloqAgoraNao">Not now</button>
+    </div>
+  </div>
+</div>
+
+<div id="telaAjustes" class="tela oculto">
+  <div class="tela-caixa">
+    <div class="tela-topo">
+      <span data-i18n="ajustes">Settings</span>
+      <button id="btFecharAjustes" class="bt bt-icone">&#10005;</button>
+    </div>
+    <div class="tela-corpo">
+      <!-- O QUE SOBROU DESTE BLOCO E O BOTAO  (2.3.3)
+
+           Ele tinha um titulo ("CORE ENGINE"), a versao ao lado e uma linha
+           explicando que atualiza o yt-dlp. Tres coisas para um botao. Quem
+           abre os Ajustes e vem aqui quer APERTAR; quem quer saber qual versao
+           esta rodando vai ao Sobre, que e onde versao mora. O rotulo do botao
+           passou a dizer o que ele faz, e o resto saiu.
+
+           E ELE SUBIU PARA O TOPO DA TELA: e a unica coisa nesta janela que se
+           aperta quando algo parou de funcionar. O resto sao preferencias, que
+           se ajustam uma vez e nao se procuram com pressa. -->
+      <div class="grupo-aj">
+        <button id="btUpdate" class="bt-update" data-rotulo="updateMotor">
+          <svg class="ic-update" viewBox="0 0 20 20" aria-hidden="true">
+            <path d="M16.4 6.6A7.2 7.2 0 1 0 17.2 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            <path d="M16.9 2.6v4.2h-4.2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span data-i18n="updateMotor">UPDATE ENGINE</span>
+        </button>
+        <div id="statusUpdate" class="status"></div>
+      </div>
+      <div class="grupo-aj">
+        <div class="grupo-tit" data-i18n="ondeSalvar">Onde salvar</div>
+        <div class="linha-aj">
+          <input id="pastaDestino" class="campo-pasta" type="text" readonly>
+          <button id="btTrocarPasta" class="bt" data-i18n="trocar">Change</button>
+        </div>
+
+        <!-- SEGUIR A PASTA DO PROJETO.
+
+             A raiz e deduzida dos proprios clipes do Media Pool, com o metodo
+             do Resolve Link. O caminho abaixo mostra onde o proximo download
+             vai cair -- sem isso a opcao seria uma caixa de fe. -->
+        <label class="checa checa-aj">
+          <input id="chkAuto" type="checkbox">
+          <span data-i18n="seguirProjeto">Follow the project folder</span>
+        </label>
+        <div id="autoAlvo" class="auto-alvo">—</div>
+      </div>
+
+        <!-- A QUALIDADE DO AUDIO VEIO PARA CA  (1.9.8), do lado da do video.
+
+             Ela morava na barra de baixo, como WAVE|MP3, ao lado de uma caixa
+             "Video". Eram duas perguntas diferentes no mesmo lugar: o que
+             baixar, e em que formato. La embaixo ficou so a primeira; esta,
+             que se responde uma vez e quase nunca muda, mora aqui. -->
+        <!-- TOCAR SOZINHO  (1.9.11)
+
+             Quando o painel termina de montar, a musica ja esta pronta e a
+             onda desenhada -- e o gesto seguinte era sempre o mesmo: apertar
+             play. Agora ele acontece sozinho.
+
+             COM INTERRUPTOR, porque nem sempre e o que se quer: quem esta
+             baixando uma fila de links nao quer cada um deles comecando a
+             tocar por cima do anterior. Nasce ligado. -->
+        <div class="grupo-aj">
+          <label class="checa">
+            <input id="chkAutoPlay" type="checkbox" checked>
+            <span data-i18n="autoplay">Tocar sozinho ao abrir</span>
+          </label>
+          <div class="nota-aj" data-i18n="autoplayNota">Quando a onda fica pronta, a musica ja comeca. Desligue se voce costuma abrir varios links seguidos.</div>
+        </div>
+        <!-- INSERIR NA TIMELINE  (2.3.1, vinda da barra de baixo)
+
+             O ID E A CHAVE DE DISCO NAO MUDARAM, e isso e requisito e nao
+             preferencia: o `chkTimeline` e o `dd_tl` sao os mesmos da 2.3.0.
+             Trocar qualquer um dos dois faria a atualizacao desligar a opcao
+             de quem ja a tinha ligada, sem avisar -- e uma preferencia que
+             some sozinha e um chamado que ninguem consegue reproduzir.
+
+             A NOTA CONTA O QUE A BARRA NAO CONTA MAIS. Antes, a caixa estava
+             ao lado do botao e a proximidade explicava o que ela fazia. Aqui
+             ela precisa dizer sozinha -- e aproveita para ensinar o arraste,
+             que e o outro caminho e nao esta escrito em lugar nenhum alem do
+             tooltip do botao. -->
+        <div class="grupo-aj">
+          <label class="checa">
+            <input id="chkTimeline" type="checkbox">
+            <span data-i18n="naTimeline">Inserir na timeline</span>
+          </label>
+          <div class="nota-aj" data-i18n="naTimelineNota">Cada download entra na timeline aberta, no playhead. Voce tambem pode arrastar o botao verde para la quando quiser.</div>
+        </div>
+
+        <!-- OS COOKIES DO NAVEGADOR  (1.9.10)
+
+             O YouTube passou a responder "Sign in to confirm you're not a bot"
+             a quem pede demais ou pede de um jeito que ele nao reconhece. A
+             saida que o proprio yt-dlp indica na mensagem e usar a SUA sessao:
+             ele le os cookies do navegador na sua maquina e manda junto.
+
+             NADA SAI DAQUI. Os cookies vao do navegador para o yt-dlp, os dois
+             rodando nesta maquina. O painel nao os ve nem os guarda.
+
+             Nasce em "nenhum" de proposito: ler o navegador de alguem sem que
+             a pessoa tenha pedido nao e escolha que um programa faz sozinho. -->
+        <div class="grupo-aj">
+          <div class="grupo-tit" data-i18n="cookies">Cookies do navegador</div>
+          <select id="selCookies" class="campo-sel">
+            <option value="" data-i18n="cookiesNenhum">Nenhum</option>
+            <option value="chrome">Google Chrome</option>
+            <option value="safari">Safari</option>
+            <option value="edge">Microsoft Edge</option>
+            <option value="firefox">Firefox</option>
+            <option value="brave">Brave</option>
+          </select>
+          <div class="nota-aj" data-i18n="cookiesNota">Use quando o YouTube pedir para confirmar que voce nao e um robo. O Safari exige Acesso Total ao Disco para o plugin.</div>
+        </div>
+
+        <div class="grupo-aj">
+          <div class="grupo-tit" data-i18n="qualidadeAudio">Formato do audio</div>
+          <select id="selFormatoAudio" class="campo-sel">
+            <option value="WAVE">WAVE</option>
+            <option value="MP3">MP3</option>
+          </select>
+          <div class="nota-aj" data-i18n="qualidadeAudioNota">O WAVE e o caminho limpo para editar. O MP3 serve quando o arquivo precisa ser leve.</div>
+        </div>
+
+      <div class="grupo-aj">
+        <div class="grupo-tit" data-i18n="qualidade">Qualidade do video</div>
+        <select id="selQualidade" class="campo-sel">
+          <option value="max">Maxima disponivel</option>
+          <option value="2160">4K (2160p)</option>
+          <option value="1080">1080p</option>
+          <option value="720">720p</option>
+        </select>
+        <!-- "prioriza" e nao "forca": se o video nao existir na altura pedida,
+             o yt-dlp desce para a melhor abaixo dela. Prometer 4K num video que
+             so tem 1080 seria a interface mentindo. -->
+        <div class="nota-aj" data-i18n="qualidadeNota">Prioriza essa altura. Se o video nao tiver, baixa a melhor abaixo dela.</div>
+      </div>
+
+      <!-- Esta tela existe para separar tres problemas que na tela pareciam o
+           mesmo: arquivo nao encontrado, encontrado e nao carregou, carregou e
+           o Initialize recusou. Foi ela que acabou com o "nao conecta" sem
+           informacao no BlackNote+. -->
+      <div class="grupo-aj">
+        <div class="grupo-tit" data-i18n="idioma">Language</div>
+        <select id="selIdioma" class="campo-sel">
+          <option value="en">English</option>
+          <option value="pt">Português</option>
+          <option value="es">Español</option>
+        </select>
+      </div>
+
+      <div class="grupo-aj">
+        <div class="grupo-tit" data-i18n="corDaOnda">Cor da onda</div>
+        <div class="temas">
+          <!-- SEM style= AQUI. A Content-Security-Policy desta pagina declara
+               style-src 'self', e o Chromium recusava os doze atributos que
+               moravam nestas tres linhas: as amostras apareciam sem cor
+               nenhuma, nos DOIS sistemas. O log do Windows registrou as doze
+               violacoes; no jsdom a CSP nao e aplicada, e por isso a suite
+               nunca pegou. As cores foram para o estilo.css, presas ao
+               data-tema que ja existia no elemento pai. -->
+          <span class="tema ligado" data-tema="mono">
+            <span class="amostra"><i></i><i></i><i></i></span>
+            Mono
+          </span>
+          <span class="tema" data-tema="azul">
+            <span class="amostra"><i></i><i></i><i></i></span>
+            Azul
+          </span>
+          <span class="tema" data-tema="verde">
+            <span class="amostra"><i></i><i></i><i></i></span>
+            Verde
+          </span>
+        </div>
+      </div>
+
+      <div class="grupo-aj">
+        <div class="grupo-tit" data-i18n="conexao">Conexao com o Resolve</div>
+        <div id="statusResolve" class="status">—</div>
+        <!-- A LISTA DE CAMINHOS E O BLOCO DOS BINARIOS FICARAM OCULTOS (2.4.0)
+
+             Os dois sao diagnostico, e diagnostico bom -- a lista separa tres
+             problemas que na tela pareciam o mesmo (nao existe / existe e nao
+             carregou / carregou e recusou), e a dos binarios diz de onde eles
+             sairam. Mas eles ocupavam metade da tela de Ajustes com caminhos
+             de sistema que ninguem le duas vezes, e o que a pessoa quer saber
+             ali -- "o Resolve respondeu?" -- cabe na linha de cima.
+
+             ELES NAO FORAM APAGADOS, E ISSO NAO E PREGUICA: o app.js escreve
+             nos dois SEM GUARDA (`cx.textContent = ""` e `st.textContent =
+             ...`). Remover os elementos daria um TypeError no arranque, e o
+             painel morreria antes de desenhar -- e a versao passada ja quase
+             caiu nisso com o `verMotor`.
+
+             PARA VE-LOS DE NOVO num diagnostico, tire o `oculto` daqui: o
+             conteudo continua sendo montado a cada reconexao. -->
+        <div id="caminhosWI" class="caminhos oculto"></div>
+        <button id="btReconectar" class="bt" data-i18n="tentarDeNovo">Try again</button>
+      </div>
+
+      <div class="grupo-aj oculto">
+        <div class="grupo-tit" data-i18n="binarios">Binarios</div>
+        <div id="statusBin" class="status">—</div>
+      </div>
+
+      <!-- CORE ENGINE, igual ao do BlackSlice. O YouTube muda a extracao com
+           frequencia e um yt-dlp de dois meses para de baixar; sem este botao
+           a unica saida seria um instalador novo a cada mudanca deles. -->
+
+
+      <div class="grupo-aj">
+        <div class="grupo-tit" data-i18n="sobre">Sobre</div>
+        <!-- A VERSAO DO MOTOR MORA AQUI DESDE A 2.3.3.
+
+             O ID CONTINUA `verMotor`, e isso nao e descuido: o app.js escreve
+             nele em dois lugares e um deles sem guarda. Renomear daria um
+             TypeError e o painel morreria antes de desenhar -- por causa de
+             uma mudanca de layout. -->
+        <div class="status">Direct Download <span id="versao">—</span> — Core Engine <span id="verMotor">—</span></div>
+        <div class="status">Jhaimes Filmes</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
