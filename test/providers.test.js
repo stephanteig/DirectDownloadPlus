@@ -40,6 +40,8 @@ assert.strictEqual(collection.items.length, 1);
 
 assert.strictEqual(p.classifyProviderError("Sign in to confirm"), "authentication-required");
 assert.strictEqual(p.classifyProviderError("live stream"), "active-livestream");
-assert.strictEqual(p.classifyProviderError("403 Forbidden"), "source-blocked");
+assert.strictEqual(p.classifyProviderError("403 expired signature"), "expired-url");
+assert.strictEqual(p.classifyProviderError("403 Forbidden"), "expired-url");
+assert.strictEqual(p.classifyProviderError("request blocked by website"), "source-blocked");
 
 console.log("provider tests: ok");

@@ -54,3 +54,5 @@ en kontrollert `collection-detected`-feil i dagens enkeltlenke-arbeidsflyt.
 Dette hindrer utilsiktet masse-nedlasting før et eget collection-UI er klart.
 
 Logging skal utvides med provider, URL-type, verktøyversjoner, cache hit/miss, metadataresultat, format, komplett backend-feil og Resolve-importstatus uten cookies/tokens eller hele signerte URL-er.
+
+Feildiagnostikk klassifiserer utløpte/signerte URL-er før generell blokkering. En HTTP 403 fra en signert CDN-URL kan derfor vises som utløpt medielenke, mens eksplisitt blokkering uten utløps- eller signaturindikator fortsatt vises som kildeblokkering.

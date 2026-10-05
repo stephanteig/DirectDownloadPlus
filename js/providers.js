@@ -173,8 +173,8 @@ function classifyProviderError(raw) {
   const text = String(raw || "");
   if (/live|livestream|is_live/i.test(text)) return "active-livestream";
   if (/private|login required|sign in|authentication/i.test(text)) return "authentication-required";
-  if (/forbidden|blocked|denied|403/i.test(text)) return "source-blocked";
-  if (/expired|signature|url.*expire|403/i.test(text)) return "expired-url";
+  if (/expired|signature|signed url|url.*expir|token.*expir|(^|[^0-9])403([^0-9]|$)/i.test(text)) return "expired-url";
+  if (/forbidden|blocked|denied/i.test(text)) return "source-blocked";
   if (/ffmpeg.*(not found|missing)|no such file.*ffmpeg/i.test(text)) return "ffmpeg-missing";
   return "provider-failed";
 }
