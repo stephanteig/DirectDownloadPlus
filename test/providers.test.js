@@ -7,6 +7,7 @@ assert.strictEqual(p.extensionOf("https://cdn.example/a.MP4?token=x"), "mp4");
 assert.strictEqual(p.extensionOf("javascript:alert(1)"), "");
 
 assert.strictEqual(p.durationFrom({ duration: 0, requested_formats: [{ duration: 12.5 }] }), 12.5);
+assert.strictEqual(p.durationFrom({ requested_formats: [{ duration_s: 13.5 }] }), 13.5);
 assert.strictEqual(p.durationFrom({ formats: [{ duration_s: 8 }] }), 8);
 assert.strictEqual(p.durationFrom({ duration: null, formats: [{ duration: 0 }] }), 0);
 

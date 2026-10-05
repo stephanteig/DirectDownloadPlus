@@ -87,7 +87,8 @@ function durationFrom(value) {
   if (direct) return direct;
   const requested = value && Array.isArray(value.requested_formats)
     ? value.requested_formats : [];
-  const requestedDuration = requested.reduce((best, item) => Math.max(best, finitePositive(item && item.duration)), 0);
+  const requestedDuration = requested.reduce((best, item) => Math.max(best,
+    finitePositive(item && (item.duration || item.duration_s))), 0);
   if (requestedDuration) return requestedDuration;
   const formats = value && Array.isArray(value.formats) ? value.formats : [];
   const formatDuration = formats.reduce((best, item) => Math.max(best, finitePositive(item && (item.duration || item.duration_s))), 0);
