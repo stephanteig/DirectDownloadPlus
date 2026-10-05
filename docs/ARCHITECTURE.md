@@ -46,6 +46,8 @@ nedlasting om gangen inntil full kø-UI kan innføres uten arbeidsflytendring.
 `js/retry-policy.js` klassifiserer providerfeil før coordinatoren retryer:
 ugyldig URL, innlogging, blokkering, utløpt URL, manglende FFmpeg og samlinger
 er permanente; midlertidige nettverks-/extractorfeil kan retryes.
+Coordinatoren kan motta denne policyen per jobb og håndterer både exceptions og
+strukturerte `{ok:false}`-resultater, uten å endre eksisterende panelkall.
 
 `js/process-runner.js` er den nye sikre prosessgrensen for videre providerarbeid:
 den bruker `spawn` med eksplisitte argumenter, samler stdout/stderr, støtter
