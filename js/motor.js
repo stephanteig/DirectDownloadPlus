@@ -2006,7 +2006,7 @@ async function urlVideo(id, semAtalho) {
      sem isso, o melhor que houver. Um video que so exista em AV1 volta a
      falhar como antes -- mas ai a culpa nao e da escolha. */
   const BASE = ["--no-warnings", "--no-playlist", "--socket-timeout", "20",
-                "-f", "bv*[vcodec^=avc1][height<=720]+ba/bv*[height<=720]+ba/bv*+ba/b",
+                "-f", "b[ext=mp4][height<=720]/b[ext=mp4]/bv*[vcodec^=avc1][height<=720]+ba/bv*[height<=720]+ba/bv*+ba/b",
                 "-g", "--"];
   const source = providers.validHttpUrl(v);
   const ALVO = source ? source.href : "https://www.youtube.com/watch?v=" + v;
