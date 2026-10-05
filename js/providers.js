@@ -49,6 +49,25 @@ function capabilitiesFor(kind, durationKnown) {
   };
 }
 
+function supportsFormat(metadata, requested) {
+  const caps = metadata && metadata.capabilities || {};
+  const format = String(requested || "").toLowerCase();
+  if (!format) return false;
+  if (format === "video") return !!caps.supportsVideo;
+  if (format === "audio") return !!caps.supportsAudio;
+  return Array.isArray(metadata && metadata.formats)
+    && metadata.formats.some((item) => String(item && item.ext || "").toLowerCase() === format);
+}
+
+function chooseFormat(metadata, requested) {
+  if (!supportsFormat(metadata, requested)) return null;
+  const wanted = String(requested).toLowerCase();
+  const formats = Array.isArray(metadata.formats) ? metadata.formats : [];
+  if (["video", "audio"].includes(wanted)) return formats[0] || { id: wanted, ext: wanted };
+  return formats.find((item) => String(item && item.ext || "").toLowerCase() === wanted)
+    || { id: wanted, ext: wanted };
+}
+
 function durationFrom(value) {
   const finitePositive = (v) => {
     const n = Number(v);
@@ -184,6 +203,9 @@ module.exports = {
   MIME_EXTENSIONS,
   validHttpUrl,
   extensionOf,
+  capabilitiesFor,
+  supportsFormat,
+  chooseFormat,
   durationFrom,
   normalizeYTDLP,
   directFileProvider,

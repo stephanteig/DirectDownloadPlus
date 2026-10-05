@@ -14,6 +14,9 @@ const direct = p.directFileProvider("https://cdn.example/reel.MP4?sig=short");
 assert.strictEqual(direct.provider, "direct-file");
 assert.strictEqual(direct.kind, "video");
 assert.strictEqual(direct.capabilities.supportsVideo, true);
+assert.strictEqual(p.supportsFormat(direct, "mp4"), true);
+assert.strictEqual(p.supportsFormat(direct, "mp3"), false);
+assert.strictEqual(p.chooseFormat(direct, "mp4").ext, "mp4");
 assert.strictEqual(p.directFileProvider("https://example.com/page"), null);
 assert.strictEqual(p.directFileProvider("https://example.com/download?id=7", "audio/mpeg").kind, "audio");
 assert.strictEqual(p.directFileProvider("https://example.com/download?id=7", "video/mp4").kind, "video");
@@ -33,6 +36,8 @@ assert.strictEqual(reel.provider, "yt-dlp");
 assert.strictEqual(reel.duration, 17);
 assert.strictEqual(reel.kind, "video");
 assert.strictEqual(reel.capabilities.supportsTrim, true);
+assert.strictEqual(p.supportsFormat(reel, "video"), true);
+assert.strictEqual(p.supportsFormat(reel, "audio"), true);
 
 const collection = p.normalizeYTDLP({ _type: "playlist", title: "Set", entries: [{ id: "1", title: "One" }] }, "https://example.com/list");
 assert.strictEqual(collection.kind, "collection");
