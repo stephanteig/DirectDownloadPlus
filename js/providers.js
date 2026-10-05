@@ -123,6 +123,24 @@ function resolveProvider(value) {
   };
 }
 
+function isSignedMediaUrl(value) {
+  const u = validHttpUrl(value);
+  if (!u) return false;
+  const query = u.search.toLowerCase();
+  return /(^|[?&])(token|sig|signature|expires|expire|oe|oh|range|bytestart|byteend|lsig)=/.test(query)
+    || /googlevideo\.com|cdninstagram\.com|fbcdn\.net|akamaized\.net/.test(u.hostname);
+}
+
+function cachePolicy(sourceUrl, metadata = {}) {
+  const signed = isSignedMediaUrl(sourceUrl);
+  return {
+    cacheMetadata: true,
+    cacheMediaUrl: !signed,
+    mediaUrlTtlMs: signed ? 0 : (Number(metadata.mediaUrlTtlMs) || 2 * 60 * 60 * 1000),
+    refreshMediaUrl: signed,
+  };
+}
+
 function classifyProviderError(raw) {
   const text = String(raw || "");
   if (/live|livestream|is_live/i.test(text)) return "active-livestream";
@@ -141,5 +159,7 @@ module.exports = {
   normalizeYTDLP,
   directFileProvider,
   resolveProvider,
+  isSignedMediaUrl,
+  cachePolicy,
   classifyProviderError,
 };

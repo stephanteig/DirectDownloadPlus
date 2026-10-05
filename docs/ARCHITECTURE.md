@@ -45,4 +45,8 @@ nedlasting om gangen inntil full kø-UI kan innføres uten arbeidsflytendring.
 
 Eksisterende cache skal ikke erstattes: binærvalg/fakta og prosesslokale preview/video-URL-er beholdes. Eventuelt nytt metadata-cache må ta hensyn til provider, normalisert URL og format. Signerte Instagram/CDN-URL-er må ha TTL og hentes på nytt etter utløp.
 
+`providers.cachePolicy()` gjør dette eksplisitt: metadata kan caches, mens
+signerte URL-er fra blant annet Instagram/CDN kun er refreshbare transportdata
+og skal hentes på nytt.
+
 Logging skal utvides med provider, URL-type, verktøyversjoner, cache hit/miss, metadataresultat, format, komplett backend-feil og Resolve-importstatus uten cookies/tokens eller hele signerte URL-er.
