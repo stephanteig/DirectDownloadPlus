@@ -114,6 +114,15 @@ function directFileProvider(value) {
   };
 }
 
+function resolveProvider(value) {
+  const direct = directFileProvider(value);
+  return direct || {
+    provider: "yt-dlp",
+    sourceUrl: String(value || ""),
+    reason: "generic-extractor-fallback",
+  };
+}
+
 function classifyProviderError(raw) {
   const text = String(raw || "");
   if (/live|livestream|is_live/i.test(text)) return "active-livestream";
@@ -131,5 +140,6 @@ module.exports = {
   durationFrom,
   normalizeYTDLP,
   directFileProvider,
+  resolveProvider,
   classifyProviderError,
 };

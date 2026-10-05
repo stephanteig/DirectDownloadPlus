@@ -2690,6 +2690,16 @@ async function analisar(jaSei) {
   }
 
   VIDEO = info;
+  const caps = info.capabilities || {};
+  /* Capabilities affect only affordances; the existing layout and controls
+     remain in place. Trim is enabled again after duration is recovered. */
+  const trimSupported = caps.supportsTrim !== false && !!info.duracao;
+  ["btTudo", "pegaI", "pegaO"].forEach((id) => {
+    const el = $(id);
+    if (!el) return;
+    el.disabled = !trimSupported;
+    el.title = trimSupported ? "" : txt("semDuracao");
+  });
   // textContent e nao innerHTML: titulo vem da internet e pode conter
   // qualquer coisa. Aqui isso nunca vira HTML.
   $("titulo").textContent = info.titulo;
@@ -2791,6 +2801,8 @@ async function analisar(jaSei) {
     if (probed > 0) {
       info.duracao = probed;
       VIDEO.duracao = probed;
+      if (info.capabilities) info.capabilities.supportsTrim = true;
+      ["btTudo", "pegaI", "pegaO"].forEach((id) => { const el = $(id); if (el) { el.disabled = false; el.title = ""; } });
       $("duracao").textContent = tc(probed);
       log("direct-file duration: ffprobe " + probed + "s");
     } else {

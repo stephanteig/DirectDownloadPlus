@@ -15,6 +15,7 @@ assert.strictEqual(direct.provider, "direct-file");
 assert.strictEqual(direct.kind, "video");
 assert.strictEqual(direct.capabilities.supportsVideo, true);
 assert.strictEqual(p.directFileProvider("https://example.com/page"), null);
+assert.strictEqual(p.resolveProvider("https://example.com/page").provider, "yt-dlp");
 
 const reel = p.normalizeYTDLP({
   id: "reel", title: "Reel", uploader: "creator", duration: 0,
