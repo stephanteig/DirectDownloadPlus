@@ -29,3 +29,7 @@ Instagram Reel-testlenken returnerte en videokilde og formater, men ingen
 toppnivå-`duration`. Dette bekrefter behovet for format-URL → ffprobe-fallback;
 proben fullførte med yt-dlp exit 0. Full Resolve-import og faktisk Media Pool-
 verifikasjon krever at pluginen lastes av en aktiv DaVinci Resolve-instans.
+
+En lokal HTTP-smoketest har også verifisert direkte video: en kort MP4 ble
+lastet gjennom `baixaVideoDireto`, trimmet til et kortere klipp og kontrollert
+med ffprobe.
