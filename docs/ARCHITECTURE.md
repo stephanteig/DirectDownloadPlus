@@ -49,4 +49,8 @@ Eksisterende cache skal ikke erstattes: binærvalg/fakta og prosesslokale previe
 signerte URL-er fra blant annet Instagram/CDN kun er refreshbare transportdata
 og skal hentes på nytt.
 
+Samlinger/spillelister oppdages og normaliseres til `items[]`, men avvises med
+en kontrollert `collection-detected`-feil i dagens enkeltlenke-arbeidsflyt.
+Dette hindrer utilsiktet masse-nedlasting før et eget collection-UI er klart.
+
 Logging skal utvides med provider, URL-type, verktøyversjoner, cache hit/miss, metadataresultat, format, komplett backend-feil og Resolve-importstatus uten cookies/tokens eller hele signerte URL-er.

@@ -975,6 +975,14 @@ async function consulta(url) {
   if (!j || !j.id) return { ok: false, erro: "o link nao devolveu uma fonte de mídia", providerError: "incomplete-metadata" };
 
   const normalized = providers.normalizeYTDLP(j, url);
+  if (normalized.kind === "collection") {
+    return {
+      ok: false,
+      erro: "lenken inneholder en samling/spilleliste; velg ett element før nedlasting",
+      providerError: "collection-detected",
+      collection: normalized,
+    };
+  }
   if (!normalized.duration) {
     const candidates = [];
     if (Array.isArray(j.requested_formats)) candidates.push(...j.requested_formats);
