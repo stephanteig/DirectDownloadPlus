@@ -38,6 +38,11 @@ Direkte lyd bruker eksisterende FFmpeg-rute; direkte video bruker en egen
 FFmpeg-rute med eksplisitt URL, valgfritt tidsintervall og MP4-output. Begge
 returnerer tilbake til samme eksisterende import- og timeline-steg.
 
+`js/download-coordinator.js` er en UI-agnostisk serialiseringsgrense med én
+aktiv jobb, eksplisitt tilstand, kansellering og begrenset retry. Den brukes
+først som testet byggestein; eksisterende panel fortsetter å styre én synlig
+nedlasting om gangen inntil full kø-UI kan innføres uten arbeidsflytendring.
+
 Eksisterende cache skal ikke erstattes: binærvalg/fakta og prosesslokale preview/video-URL-er beholdes. Eventuelt nytt metadata-cache må ta hensyn til provider, normalisert URL og format. Signerte Instagram/CDN-URL-er må ha TTL og hentes på nytt etter utløp.
 
 Logging skal utvides med provider, URL-type, verktøyversjoner, cache hit/miss, metadataresultat, format, komplett backend-feil og Resolve-importstatus uten cookies/tokens eller hele signerte URL-er.
