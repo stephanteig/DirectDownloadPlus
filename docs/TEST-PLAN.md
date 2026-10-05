@@ -22,3 +22,10 @@
 - Bin-/mappehåndtering, timeline-import og Resolve-importstatus i loggen.
 
 Ingen fase godkjennes før eksisterende UI og YouTube-cacheoppførsel er regresjonstestet.
+
+## Verifisert i utviklingsmiljø
+
+Instagram Reel-testlenken returnerte en videokilde og formater, men ingen
+toppnivå-`duration`. Dette bekrefter behovet for format-URL → ffprobe-fallback;
+proben fullførte med yt-dlp exit 0. Full Resolve-import og faktisk Media Pool-
+verifikasjon krever at pluginen lastes av en aktiv DaVinci Resolve-instans.
