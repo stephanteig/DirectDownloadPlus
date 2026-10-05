@@ -33,3 +33,12 @@ verifikasjon krever at pluginen lastes av en aktiv DaVinci Resolve-instans.
 En lokal HTTP-smoketest har også verifisert direkte video: en kort MP4 ble
 lastet gjennom `baixaVideoDireto`, trimmet til et kortere klipp og kontrollert
 med ffprobe.
+
+Pluginen er installert separat i:
+
+`/Library/Application Support/Blackmagic Design/DaVinci Resolve/Workflow Integration Plugins/com.stephanteig.directdownloadplus`
+
+DaVinci Resolve kjørte allerede under installasjonen. Siden Resolve normalt
+leser Workflow Integration-manifester ved oppstart, er faktisk panelåpning og
+Media Pool-import utsatt til neste Resolve-omstart; aktiv Resolve ble ikke
+avsluttet automatisk for å unngå risiko for usikret brukerarbeid.
