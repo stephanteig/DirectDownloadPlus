@@ -18,5 +18,17 @@ const { DownloadCoordinator } = require("../js/download-coordinator");
   assert.strictEqual(b.value, 8);
   assert.strictEqual(c.state(first.id), "completed");
   assert.strictEqual(c.state(second.id), "completed");
+
+  const cancellable = new DownloadCoordinator({ maxAttempts: 1 });
+  let stop;
+  const active = cancellable.enqueue(({ cancel }) => new Promise((resolve) => {
+    stop = () => { resolve({ stopped: true }); };
+    cancel(stop);
+  }));
+  while (typeof stop !== "function") await new Promise((resolve) => setImmediate(resolve));
+  assert.strictEqual(cancellable.cancel(active.id), true);
+  const cancelled = await active.promise;
+  assert.strictEqual(cancelled.cancelled, true);
+  assert.strictEqual(cancellable.state(active.id), "cancelled");
   console.log("coordinator tests: ok");
 })();
