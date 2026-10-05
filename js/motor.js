@@ -1046,7 +1046,7 @@ async function consulta(url) {
   });
 }
 
-function contentTypeForUrl(url) {
+function contentTypeForUrl(url, redirects = 0) {
   return new Promise((resolve) => {
     const transport = url.protocol === "https:" ? https : http;
     let done = false;
@@ -1056,6 +1056,18 @@ function contentTypeForUrl(url) {
       try {
         req = transport.request(url, { method, timeout: 8000, headers }, (res) => {
           const type = String(res.headers["content-type"] || "");
+          const location = res.headers.location;
+          if (location && [301, 302, 303, 307, 308].includes(res.statusCode) && redirects < 3) {
+            res.resume();
+            try {
+              const next = new URL(location, url);
+              if ((next.protocol === "http:" || next.protocol === "https:") &&
+                  !(url.protocol === "https:" && next.protocol === "http:")) {
+                contentTypeForUrl(next, redirects + 1).then(finish);
+                return;
+              }
+            } catch (_) {}
+          }
           const retry = allowFallback && (!type || [403, 405, 501].includes(res.statusCode));
           res.resume();
           if (retry && !done) probe("GET", Object.assign({}, headers, { Range: "bytes=0-0" }), false);
