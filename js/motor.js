@@ -974,6 +974,16 @@ async function consulta(url) {
   if (!j || !j.id) return { ok: false, erro: "o link nao devolveu video" };
 
   const normalized = providers.normalizeYTDLP(j, url);
+  if (!normalized.duration) {
+    const candidates = [];
+    if (Array.isArray(j.requested_formats)) candidates.push(...j.requested_formats);
+    if (Array.isArray(j.formats)) candidates.push(...j.formats);
+    const source = candidates.find((f) => f && f.url && f.vcodec !== "none") || candidates.find((f) => f && f.url);
+    if (source && source.url) {
+      const probed = await ffprobeKilde(source.url);
+      if (probed > 0) normalized.duration = probed;
+    }
+  }
   return Object.assign({
     ok: true,
     id: j.id,
@@ -1169,6 +1179,16 @@ async function ffprobeDuracao(arquivo) {
   if (r.code !== 0) return 0;
   const n = Number(String(r.saida || "").trim());
   return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+async function ffprobeKilde(url) {
+  if (!url || !/^https?:\/\//i.test(String(url))) return 0;
+  const probe = acha("ffprobe");
+  if (!path.isAbsolute(probe)) return 0;
+  const r = await rodaComTeto(probe, ["-v", "error", "-show_entries", "format=duration",
+    "-of", "default=noprint_wrappers=1:nokey=1", String(url)], 20000);
+  const n = Number(String(r.saida || "").trim());
+  return r.code === 0 && Number.isFinite(n) && n > 0 ? n : 0;
 }
 
 /* BUSCAR NO YOUTUBE  (1.8.8)
@@ -1963,7 +1983,7 @@ module.exports = {
      decide o que vai no pedido, e o leProgressoFf decide o que a barra mostra.
      Uma decisao que nenhum teste consegue chamar e uma decisao que ninguem
      conferiu. */
-  baixaAudioDireto, ffprobeDuracao, audioDoJson, argsCabecalho, leProgressoFf,
+  baixaAudioDireto, ffprobeDuracao, ffprobeKilde, audioDoJson, argsCabecalho, leProgressoFf,
   providers,
   atualizaMotor, versaoDoMotor, pastaDoUsuario,
   fichaDosBinarios, argsMotorJS, ambiente,
