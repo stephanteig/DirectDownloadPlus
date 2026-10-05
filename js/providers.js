@@ -11,6 +11,11 @@ const DIRECT_EXTENSIONS = new Set([
 
 const VIDEO_EXTENSIONS = new Set(["mp4", "mov", "m4v", "webm"]);
 const AUDIO_EXTENSIONS = new Set(["mp3", "m4a", "wav", "flac"]);
+const MIME_EXTENSIONS = new Map([
+  ["video/mp4", "mp4"], ["video/quicktime", "mov"], ["video/webm", "webm"],
+  ["audio/mpeg", "mp3"], ["audio/mp4", "m4a"], ["audio/x-m4a", "m4a"],
+  ["audio/wav", "wav"], ["audio/x-wav", "wav"], ["audio/flac", "flac"],
+]);
 
 function validHttpUrl(value) {
   try {
@@ -93,9 +98,10 @@ function normalizeYTDLP(json, sourceUrl) {
   };
 }
 
-function directFileProvider(value) {
+function directFileProvider(value, contentType = "") {
   const url = validHttpUrl(value);
-  const ext = extensionOf(value);
+  const mime = String(contentType || "").split(";", 1)[0].trim().toLowerCase();
+  const ext = extensionOf(value) || MIME_EXTENSIONS.get(mime) || "";
   if (!url || !DIRECT_EXTENSIONS.has(ext)) return null;
   const kind = VIDEO_EXTENSIONS.has(ext) ? "video" : "audio";
   return {
@@ -175,6 +181,7 @@ function classifyProviderError(raw) {
 
 module.exports = {
   DIRECT_EXTENSIONS,
+  MIME_EXTENSIONS,
   validHttpUrl,
   extensionOf,
   durationFrom,

@@ -15,6 +15,8 @@ assert.strictEqual(direct.provider, "direct-file");
 assert.strictEqual(direct.kind, "video");
 assert.strictEqual(direct.capabilities.supportsVideo, true);
 assert.strictEqual(p.directFileProvider("https://example.com/page"), null);
+assert.strictEqual(p.directFileProvider("https://example.com/download?id=7", "audio/mpeg").kind, "audio");
+assert.strictEqual(p.directFileProvider("https://example.com/download?id=7", "video/mp4").kind, "video");
 assert.strictEqual(p.resolveProvider("https://example.com/page").provider, "yt-dlp");
 assert.strictEqual(p.cachePolicy("https://rr.example/video.mp4").cacheMediaUrl, true);
 assert.strictEqual(p.cachePolicy("https://v16.cdninstagram.com/video.mp4?oe=abc&sig=xyz").cacheMediaUrl, false);
