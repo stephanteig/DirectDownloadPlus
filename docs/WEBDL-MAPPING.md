@@ -14,10 +14,10 @@ WebDL ble undersøkt lokalt i `/Users/stephanteig/Documents/Dev/WebDL` (`stephan
 | `DirectFileProvider` | ny første provider |
 | `YTDLPProvider` | innkapsling av dagens yt-dlp-rute |
 | `DependencyManager` | videreføring av binærvalg/versjonsfakta |
-| `ProcessRunner` | videreføring av `roda`/`rodaComTeto` |
+| `ProcessRunner` | `js/process-runner.js`, med eksplisitt argv, stdout/stderr, timeout og kansellering |
 | progress/cancel | felles callbacks og child-process-referanser |
 
-WebDLs eksplisitte argumentlister, fortløpende stdout/stderr-lesing og prosesskansellering samsvarer allerede med viktige deler av `motor.js`. Vi skal trekke grensene ut uten å flytte Resolve- eller UI-ansvar inn i providerne.
+WebDLs eksplisitte argumentlister, fortløpende stdout/stderr-lesing og prosesskansellering samsvarer allerede med viktige deler av `motor.js`. `ProcessRunner` er lagt til som en isolert, testet grense for nye provider-/coordinator-ruter; den eksisterende `roda`-flyten beholdes for å unngå UI-regresjon. Vi skal trekke grensene ut uten å flytte Resolve- eller UI-ansvar inn i providerne.
 
 Providerlaget har nå konkrete `DirectFileProvider`, `YTDLPProvider` og
 `ProviderResolver`-klasser. De deler fortsatt de eksisterende normaliserings-

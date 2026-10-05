@@ -43,6 +43,11 @@ aktiv jobb, eksplisitt tilstand, kansellering og begrenset retry. Den brukes
 først som testet byggestein; eksisterende panel fortsetter å styre én synlig
 nedlasting om gangen inntil full kø-UI kan innføres uten arbeidsflytendring.
 
+`js/process-runner.js` er den nye sikre prosessgrensen for videre providerarbeid:
+den bruker `spawn` med eksplisitte argumenter, samler stdout/stderr, støtter
+timeout og kan avslutte en aktiv prosess. Den eksisterende motorens prosesskode
+er fortsatt urørt der den allerede er koblet til Direct Download-flyt.
+
 Eksisterende cache skal ikke erstattes: binærvalg/fakta og prosesslokale preview/video-URL-er beholdes. Eventuelt nytt metadata-cache må ta hensyn til provider, normalisert URL og format. Signerte Instagram/CDN-URL-er må ha TTL og hentes på nytt etter utløp.
 
 `providers.cachePolicy()` gjør dette eksplisitt: metadata kan caches, mens
