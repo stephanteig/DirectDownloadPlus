@@ -11,6 +11,8 @@ const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
+const http = require("http");
+const https = require("https");
 const providers = require("./providers");
 
 const RAIZ = path.join(__dirname, "..");
@@ -937,7 +939,11 @@ async function consulta(url) {
   if (!valid) {
     return { ok: false, erro: "lenken må være en http- eller https-URL", bruto: "invalid URL", providerError: "invalid-url" };
   }
-  const direct = providers.directFileProvider(valid.href);
+  let direct = providers.directFileProvider(valid.href);
+  if (!direct) {
+    const contentType = await contentTypeForUrl(valid);
+    direct = providers.directFileProvider(valid.href, contentType);
+  }
   if (direct) {
     /* Direct files are deliberately returned without a guessed duration. The
        caller can offer download immediately and may fill duration with
@@ -1012,6 +1018,25 @@ async function consulta(url) {
     duracao: normalized.duration,
     thumb: normalized.thumbnail,
     audio: audioDoJson(j),
+  });
+}
+
+function contentTypeForUrl(url) {
+  return new Promise((resolve) => {
+    const transport = url.protocol === "https:" ? https : http;
+    let done = false;
+    const finish = (value) => { if (!done) { done = true; resolve(value || ""); } };
+    let req;
+    try {
+      req = transport.request(url, { method: "HEAD", timeout: 8000, headers: { "User-Agent": "DirectDownloadPlus/0.1" } }, (res) => {
+        const type = String(res.headers["content-type"] || "");
+        res.resume();
+        finish(type);
+      });
+      req.on("timeout", () => { req.destroy(); finish(""); });
+      req.on("error", () => finish(""));
+      req.end();
+    } catch (_) { finish(""); }
   });
 }
 
@@ -2009,7 +2034,7 @@ async function urlVideo(id, semAtalho) {
 
 
 module.exports = {
-  acha, temBinarios, consulta, busca, paraBusca, urlAudio, paraPrevia, poeCookies, urlVideo, paraVideo, baixaMiniaturas, urlDaCapa, baixaAudio, baixaCapa, geraOnda, corta, baixaVideo,
+  acha, temBinarios, consulta, contentTypeForUrl, busca, paraBusca, urlAudio, paraPrevia, poeCookies, urlVideo, paraVideo, baixaMiniaturas, urlDaCapa, baixaAudio, baixaCapa, geraOnda, corta, baixaVideo,
   leProgresso, limpaErro, nomeSeguro, urlDeArquivo, ehBloqueioBot, enxugaBloqueio, explicaFalha,
   /* A ROTA DIRETA (2.3.0). As tres saem exportadas porque as tres sao
      decisoes, e nao detalhe: o audioDoJson decide SE ha atalho, o argsCabecalho
