@@ -48,5 +48,9 @@ assert.strictEqual(p.classifyProviderError("live stream"), "active-livestream");
 assert.strictEqual(p.classifyProviderError("403 expired signature"), "expired-url");
 assert.strictEqual(p.classifyProviderError("403 Forbidden"), "expired-url");
 assert.strictEqual(p.classifyProviderError("request blocked by website"), "source-blocked");
+assert.strictEqual(p.classifyProviderError("This is a live stream"), "active-livestream");
+assert.strictEqual(p.classifyProviderError("Private video: login required"), "authentication-required");
+assert.strictEqual(p.classifyProviderError("ffmpeg not found"), "ffmpeg-missing");
+assert.strictEqual(p.classifyProviderError("extractor failed"), "provider-failed");
 
 console.log("provider tests: ok");
