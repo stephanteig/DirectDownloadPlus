@@ -1147,7 +1147,8 @@ async function baixaAudioDireto(audio, id, duracao, aoProgresso) {
   const saida = path.join(pasta, base + "." + audio.ext);
 
   const args = ["-y", "-hide_banner", "-nostdin", "-loglevel", "error", "-progress", "pipe:1"]
-    .concat(argsCabecalho(audio.cabecalhos), ["-i", audio.url, "-vn", "-c:a", "copy", saida]);
+    .concat(argsCabecalho(audio.cabecalhos), ["-i", audio.url, "-vn", "-c:a",
+      audio.reencode ? "aac" : "copy", saida]);
 
   const r = await roda(ff, args, aoProgresso);
   if (r.code !== 0) {
@@ -1170,6 +1171,29 @@ async function baixaAudioDireto(audio, id, duracao, aoProgresso) {
     return { ok: false, erro: "o ffmpeg terminou, mas o arquivo saiu vazio" };
   }
   return { ok: true, arquivo: saida, bytes: tam };
+}
+
+async function baixaVideoDireto(url, id, inicio, fim, destino, titulo, aoProgresso) {
+  const ff = acha("ffmpeg");
+  if (!path.isAbsolute(ff) || !/^https?:\/\//i.test(String(url || ""))) {
+    return { ok: false, erro: "direct-file krever en gyldig URL og FFmpeg" };
+  }
+  try { fs.mkdirSync(destino, { recursive: true }); } catch (_) {
+    return { ok: false, erro: "klarte ikke å opprette målmappe" };
+  }
+  const sufixo = Number.isFinite(inicio) && Number.isFinite(fim) && fim > inicio
+    ? "_" + Math.floor(inicio) + "-" + Math.floor(fim) : "";
+  const output = path.join(destino, nomeSeguro(titulo || id || "video") + sufixo + ".mp4");
+  const args = ["-y", "-hide_banner", "-nostdin", "-loglevel", "error", "-progress", "pipe:1"];
+  if (Number.isFinite(inicio) && inicio > 0) args.push("-ss", String(inicio));
+  args.push("-i", String(url));
+  if (Number.isFinite(inicio) && Number.isFinite(fim) && fim > inicio) args.push("-t", String(fim - inicio));
+  args.push("-c", "copy", output);
+  const r = await roda(ff, args, aoProgresso);
+  if (r.code !== 0) return { ok: false, erro: limpaErro(r.erro) || "FFmpeg kunne ikke laste ned direkte video", bruto: String(r.erro || "") };
+  try { if (fs.statSync(output).size < 1024) return { ok: false, erro: "direkte videofil ble tom" }; }
+  catch (_) { return { ok: false, erro: "direkte videofil ble ikke opprettet" }; }
+  return { ok: true, arquivo: output };
 }
 
 async function ffprobeDuracao(arquivo) {
@@ -1984,7 +2008,7 @@ module.exports = {
      decide o que vai no pedido, e o leProgressoFf decide o que a barra mostra.
      Uma decisao que nenhum teste consegue chamar e uma decisao que ninguem
      conferiu. */
-  baixaAudioDireto, ffprobeDuracao, ffprobeKilde, audioDoJson, argsCabecalho, leProgressoFf,
+  baixaAudioDireto, baixaVideoDireto, ffprobeDuracao, ffprobeKilde, audioDoJson, argsCabecalho, leProgressoFf,
   providers,
   atualizaMotor, versaoDoMotor, pastaDoUsuario,
   fichaDosBinarios, argsMotorJS, ambiente,

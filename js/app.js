@@ -2587,6 +2587,12 @@ async function pegaAudio(url, info) {
     if (direct && direct.bruto) log("direct-file (bruto): " + direct.bruto);
     return { ok: false, erro: (direct && direct.erro) || "direct file download failed" };
   }
+  if (info && info.direct && info.kind === "video") {
+    const direct = await motor.baixaAudioDireto({ url: info.sourceUrl || url, ext: "m4a", reencode: true }, info.id,
+                                                info.duracao || 0, progressoFf(info.duracao));
+    if (direct && direct.ok) return direct;
+    return { ok: false, erro: (direct && direct.erro) || "kunne ikke hente lydsporet fra direkte video" };
+  }
   if (info && info.audio && info.audio.url) {
     const t0 = Date.now();
     const d = await motor.baixaAudioDireto(info.audio, info.id, info.duracao,
@@ -2993,12 +2999,11 @@ async function baixar() {
 
   if (soVideo) {
     diz(txt("baixandoVideo"));
-    const vid = await motor.baixaVideo(
-      $("link").value.trim(),
-      temTrecho ? ini : null,
-      temTrecho ? fim : null,
-      ALTURA, dest.pasta, VIDEO.titulo, progresso
-    );
+    const vid = VIDEO.direct
+      ? await motor.baixaVideoDireto(VIDEO.sourceUrl, VIDEO.id, temTrecho ? ini : null,
+          temTrecho ? fim : null, dest.pasta, VIDEO.titulo, progresso)
+      : await motor.baixaVideo($("link").value.trim(), temTrecho ? ini : null,
+          temTrecho ? fim : null, ALTURA, dest.pasta, VIDEO.titulo, progresso);
     if (vid.ok) {
       gerados.push(vid.arquivo);
       /* O QUE SE ARRASTA E O VIDEO. Em VIDEO nao ha WAVE, e deixar o arraste
