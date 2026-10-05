@@ -5,5 +5,5 @@
   "author": "Jhaimes Sousa (@jhaimesfilmes)",
   "license": "MIT",
   "main": "main.js",
-  "scripts": { "test": "node test/run.js" }
+  "scripts": { "test": "node test/run.js", "verify": "node test/verify.js" }
 }
