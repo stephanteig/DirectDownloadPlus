@@ -1051,17 +1051,22 @@ function contentTypeForUrl(url) {
     const transport = url.protocol === "https:" ? https : http;
     let done = false;
     const finish = (value) => { if (!done) { done = true; resolve(value || ""); } };
-    let req;
-    try {
-      req = transport.request(url, { method: "HEAD", timeout: 8000, headers: { "User-Agent": "DirectDownloadPlus/0.1" } }, (res) => {
-        const type = String(res.headers["content-type"] || "");
-        res.resume();
-        finish(type);
-      });
-      req.on("timeout", () => { req.destroy(); finish(""); });
-      req.on("error", () => finish(""));
-      req.end();
-    } catch (_) { finish(""); }
+    const probe = (method, headers, allowFallback) => {
+      let req;
+      try {
+        req = transport.request(url, { method, timeout: 8000, headers }, (res) => {
+          const type = String(res.headers["content-type"] || "");
+          const retry = allowFallback && (!type || [403, 405, 501].includes(res.statusCode));
+          res.resume();
+          if (retry && !done) probe("GET", Object.assign({}, headers, { Range: "bytes=0-0" }), false);
+          else finish(type);
+        });
+        req.on("timeout", () => { req.destroy(); if (allowFallback && !done) probe("GET", Object.assign({}, headers, { Range: "bytes=0-0" }), false); else finish(""); });
+        req.on("error", () => { if (allowFallback && !done) probe("GET", Object.assign({}, headers, { Range: "bytes=0-0" }), false); else finish(""); });
+        req.end();
+      } catch (_) { if (allowFallback && !done) probe("GET", Object.assign({}, headers, { Range: "bytes=0-0" }), false); else finish(""); }
+    };
+    probe("HEAD", { "User-Agent": "DirectDownloadPlus/0.1" }, true);
   });
 }
 
