@@ -42,3 +42,10 @@ DaVinci Resolve kjørte allerede under installasjonen. Siden Resolve normalt
 leser Workflow Integration-manifester ved oppstart, er faktisk panelåpning og
 Media Pool-import utsatt til neste Resolve-omstart; aktiv Resolve ble ikke
 avsluttet automatisk for å unngå risiko for usikret brukerarbeid.
+
+Ikke-nedlastende yt-dlp-smoketester er kjørt med:
+
+- YouTube `dQw4w9WgXcQ`: bestått, 213 sekunder og 49 formater.
+- TikTok `6718335390845095173`: bestått, 10 sekunder og 11 formater.
+- Vimeo `76979871`: tydelig innloggingsfeil fra kilden; dette validerer at
+  providerlaget må vise authentication-required i stedet for en generisk feil.
