@@ -30,5 +30,15 @@ const { DownloadCoordinator } = require("../js/download-coordinator");
   const cancelled = await active.promise;
   assert.strictEqual(cancelled.cancelled, true);
   assert.strictEqual(cancellable.state(active.id), "cancelled");
+
+  const resultRetry = new DownloadCoordinator({ maxAttempts: 2 });
+  let resultAttempts = 0;
+  const retryResult = resultRetry.enqueue(async () => {
+    resultAttempts += 1;
+    return resultAttempts === 1 ? { ok: false, providerError: "provider-failed" } : { value: 9 };
+  }, { shouldRetry: (error) => error.providerError === "provider-failed" });
+  const retried = await retryResult.promise;
+  assert.strictEqual(retried.ok, true);
+  assert.strictEqual(retried.attempts, 2);
   console.log("coordinator tests: ok");
 })();

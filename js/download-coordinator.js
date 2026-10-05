@@ -15,7 +15,8 @@ class DownloadCoordinator {
   enqueue(run, options = {}) {
     if (typeof run !== "function") throw new TypeError("run must be a function");
     const id = options.id || "download-" + this.nextId++;
-    const job = { id, run, attempts: 0, cancelled: false, resolve: null };
+    const job = { id, run, attempts: 0, cancelled: false, resolve: null,
+      shouldRetry: typeof options.shouldRetry === "function" ? options.shouldRetry : null };
     const promise = new Promise((resolve) => { job.resolve = resolve; });
     this.queue.push(job);
     this.states.set(id, "queued");
@@ -49,6 +50,14 @@ class DownloadCoordinator {
       try {
         const result = await job.run({ attempt: job.attempts, cancel: (fn) => { job.cancel = fn; } });
         if (job.cancelled) break;
+        if (result && result.ok === false) {
+          const error = result.error || result;
+          const canRetry = job.shouldRetry ? job.shouldRetry(error, job.attempts) : false;
+          if (canRetry && job.attempts < this.maxAttempts) continue;
+          this.states.set(job.id, "failed");
+          job.resolve({ ok: false, id: job.id, attempts: job.attempts, error: result });
+          this.active = null; this.pump(); return;
+        }
         this.states.set(job.id, "completed");
         job.resolve(Object.assign({ ok: true, id: job.id, attempts: job.attempts }, result || {}));
         this.active = null; this.pump(); return;
