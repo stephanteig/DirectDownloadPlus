@@ -34,6 +34,10 @@ En lokal HTTP-smoketest har også verifisert direkte video: en kort MP4 ble
 lastet gjennom `baixaVideoDireto`, trimmet til et kortere klipp og kontrollert
 med ffprobe.
 
+En tilsvarende lokal HTTP-smoketest har verifisert direkte lyd: WAV ble hentet
+gjennom `baixaAudioDireto`, skrevet til pluginens temporære mappe og målt til
+to sekunder med ffprobe.
+
 Pluginen er installert separat i:
 
 `/Library/Application Support/Blackmagic Design/DaVinci Resolve/Workflow Integration Plugins/com.stephanteig.directdownloadplus`
