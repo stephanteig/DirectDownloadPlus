@@ -120,7 +120,8 @@ function normalizeYTDLP(json, sourceUrl) {
 function directFileProvider(value, contentType = "") {
   const url = validHttpUrl(value);
   const mime = String(contentType || "").split(";", 1)[0].trim().toLowerCase();
-  const ext = extensionOf(value) || MIME_EXTENSIONS.get(mime) || "";
+  const urlExt = extensionOf(value);
+  const ext = DIRECT_EXTENSIONS.has(urlExt) ? urlExt : (MIME_EXTENSIONS.get(mime) || "");
   if (!url || !DIRECT_EXTENSIONS.has(ext)) return null;
   const kind = VIDEO_EXTENSIONS.has(ext) ? "video" : "audio";
   const rawTitle = (url.pathname.split("/").pop() || "Download").replace(/\.[^.]+$/, "");

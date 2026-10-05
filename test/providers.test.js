@@ -20,6 +20,7 @@ assert.strictEqual(p.chooseFormat(direct, "mp4").ext, "mp4");
 assert.strictEqual(p.directFileProvider("https://example.com/page"), null);
 assert.strictEqual(p.directFileProvider("https://example.com/download?id=7", "audio/mpeg").kind, "audio");
 assert.strictEqual(p.directFileProvider("https://example.com/download?id=7", "video/mp4").kind, "video");
+assert.strictEqual(p.directFileProvider("https://example.com/download.html", "video/mp4").formats[0].ext, "mp4");
 assert.strictEqual(p.directFileProvider("https://example.com/bad-%ZZ.mp4").title, "bad-%ZZ");
 assert.strictEqual(p.resolveProvider("https://example.com/page").provider, "yt-dlp");
 assert.strictEqual(p.cachePolicy("https://rr.example/video.mp4").cacheMediaUrl, true);
