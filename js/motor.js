@@ -969,15 +969,16 @@ async function consulta(url) {
     "-J", "--", url,
   ]));
   if (r.code !== 0) {
+    const providerError = providers.classifyProviderError(r.erro);
     /* O BRUTO VAI JUNTO, para o app.js poder mandá-lo INTEIRO para o log. O
        limpaErro fica com a última linha de ERROR e joga fora o resto -- e o
        resto é onde estava o aviso do runtime. */
     return {
       ok: false,
-      erro: enxugaBloqueio(limpaErro(r.erro)) || "yt-dlp saiu com codigo " + r.code,
+      erro: providers.providerErrorMessage(providerError) || enxugaBloqueio(limpaErro(r.erro)) || "yt-dlp saiu com codigo " + r.code,
       bruto: String(r.erro || "").trim(),
       dica: await explicaFalha(r.erro),
-      providerError: providers.classifyProviderError(r.erro),
+      providerError,
       /* A ACAO diz ao app.js que esta falha TEM saida, e qual. Um campo
          proprio, e nao um regex na dica: a dica e texto para uma pessoa ler e
          muda com o idioma; decidir botao por ela seria amarrar o comportamento
