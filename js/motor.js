@@ -1861,7 +1861,8 @@ async function buscaUrlAudio(id, silencioso, semAtalho) {
      normal. Ou seja: o pior caso desta tentativa e ela nao ajudar. */
   const ARGS_BASE = ["--no-warnings", "--no-playlist", "--socket-timeout", "20",
                      "-f", "bestaudio", "-g", "--"];
-  const ALVO = "https://www.youtube.com/watch?v=" + v;
+  const source = providers.validHttpUrl(v);
+  const ALVO = source ? source.href : "https://www.youtube.com/watch?v=" + v;
   const RAPIDO = ATALHO;
 
   /* 9s no atalho, 30s no caminho certo. O atalho existe para ser rapido: se
@@ -2007,7 +2008,8 @@ async function urlVideo(id, semAtalho) {
   const BASE = ["--no-warnings", "--no-playlist", "--socket-timeout", "20",
                 "-f", "bv*[vcodec^=avc1][height<=720]+ba/bv*[height<=720]+ba/bv*+ba/b",
                 "-g", "--"];
-  const ALVO = "https://www.youtube.com/watch?v=" + v;
+  const source = providers.validHttpUrl(v);
+  const ALVO = source ? source.href : "https://www.youtube.com/watch?v=" + v;
   const RAPIDO = ATALHO;
   const pede = (extra, teto) => rodaYtComTeto(argsCookies().concat(extra, BASE, [ALVO]),
                                               teto, (p) => { meu = p; VIDEO_PROC = p; });

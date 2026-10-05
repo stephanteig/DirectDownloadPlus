@@ -2784,7 +2784,7 @@ async function analisar(jaSei) {
      DE BRINDE, o audio da faixa entra no PREVIA_CACHE junto: o urlVideo pede
      `bv*+ba` e o yt-dlp imprime as duas linhas. Voltar a lista e tocar aquela
      mesma faixa deixa de custar outra extracao. */
-  motor.urlVideo(info.id).then((r) => {
+  motor.urlVideo(info.sourceUrl || info.id).then((r) => {
     if (!r || !r.ok) return;
     log("urlVideo adiantado: " + (r.doCache ? "cache" : r.ms + " ms"));
     /* A FONTE ENTRA NO ELEMENTO AGORA, escondida e pausada  (1.9.8)
@@ -3331,7 +3331,8 @@ function inicia() {
   });
 
   /* Depois do painel montar, e nao junto: a rede nao pode atrasar o boot. */
-  setTimeout(() => { verificaVersao().catch((e) => log("verificaVersao: " + e)); }, 2500);
+  /* Direct Download Plus is separate from the original plugin; do not show
+     the original Direct Download update banner or query its release feed. */
   $("chkTimeline").addEventListener("change", (ev) => {
     try { localStorage.setItem("dd_tl", ev.target.checked ? "1" : "0"); } catch (e) {}
   });
