@@ -12,7 +12,7 @@
 const path = require("path");
 const fs = require("fs");
 
-const PLUGIN_ID = "com.jhaimesfilmes.directdownload";
+const PLUGIN_ID = "com.stephanteig.directdownloadplus";
 
 let _wi = null;
 let _resolve = null;

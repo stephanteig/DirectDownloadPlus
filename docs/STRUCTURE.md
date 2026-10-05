@@ -34,3 +34,4 @@ URL → `motor.consulta()` → metadata/tittel/kanal/thumbnail → direkte FFmpe
 - `PREVIA_CACHE` og `VIDEO_CACHE` er prosesslokale URL-cacher.
 - Analyse og nedlasting bruker `--no-playlist`; dette bevarer dagens enkeltlenke-flyt, men samlinger må senere detekteres kontrollert.
 - UI-et avviser i dag analyse uten positiv toppnivå-varighet. Dette må utvides med duration-fallback uten å tolke manglende toppnivå-duration som livestream.
+- `js/providers.js` er den nye provider-/normaliseringsgrensen; den endrer ikke UI-kontrakten alene.

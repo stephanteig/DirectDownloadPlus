@@ -20,7 +20,7 @@ const URL_VERSAO = "https://caixinhadoeditor.com/directdownload/versao.json";
 const path = require("path");
 const fs = require("fs");
 
-const APP_VERSION = "2.3.8";
+const APP_VERSION = "0.1.0";
 let win = null;
 
 /* ---------------------------------------------------------------------------

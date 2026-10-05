@@ -1,8 +1,9 @@
 {
-  "name": "directdownload",
-  "version": "2.3.8",
+  "name": "directdownloadplus",
+  "version": "0.1.0",
   "description": "DaVinci Resolve Workflow Integration Plugin - audio de link direto para o Media Pool",
   "author": "Jhaimes Sousa (@jhaimesfilmes)",
   "license": "MIT",
-  "main": "main.js"
+  "main": "main.js",
+  "scripts": { "test": "node test/run.js" }
 }

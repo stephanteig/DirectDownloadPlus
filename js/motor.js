@@ -11,6 +11,7 @@ const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
+const providers = require("./providers");
 
 const RAIZ = path.join(__dirname, "..");
 const EH_WIN = process.platform === "win32";
@@ -932,6 +933,19 @@ async function explicaFalha(bruto) {
    format is not available" num link onde hoje ela funciona. Trocar o seletor
    aqui sem trocar la seria pedir o endereco de um formato e baixar outro. */
 async function consulta(url) {
+  const valid = providers.validHttpUrl(url);
+  if (!valid) {
+    return { ok: false, erro: "lenken må være en http- eller https-URL", bruto: "invalid URL", providerError: "invalid-url" };
+  }
+  const direct = providers.directFileProvider(valid.href);
+  if (direct) {
+    /* Direct files are deliberately returned without a guessed duration. The
+       caller can offer download immediately and may fill duration with
+       ffprobe after the file is available; an unknown duration is not a live
+       stream. */
+    return Object.assign({ ok: true, id: direct.sourceUrl, titulo: direct.title,
+      canal: "", duracao: 0, thumb: "", audio: null, direct: true }, direct);
+  }
   const r = await rodaYt(argsCookies().concat([
     "--no-warnings", "--no-playlist", "--socket-timeout", "20",
     "-f", "ba/b",
@@ -959,7 +973,8 @@ async function consulta(url) {
   catch (e) { return { ok: false, erro: "resposta do yt-dlp nao era JSON" }; }
   if (!j || !j.id) return { ok: false, erro: "o link nao devolveu video" };
 
-  return {
+  const normalized = providers.normalizeYTDLP(j, url);
+  return Object.assign({
     ok: true,
     id: j.id,
     titulo: j.title || j.id,
@@ -970,7 +985,15 @@ async function consulta(url) {
        baixaAudio() de sempre. Nunca undefined: quem le tem de poder perguntar
        `if (info.audio)` sem se preocupar com a diferenca. */
     audio: audioDoJson(j),
-  };
+  }, normalized, {
+    /* Keep the old names consumed by app.js until the UI migration is complete. */
+    id: j.id,
+    titulo: normalized.title,
+    canal: normalized.author,
+    duracao: normalized.duration,
+    thumb: normalized.thumbnail,
+    audio: audioDoJson(j),
+  });
 }
 
 /* O ENDERECO DO AUDIO, LIDO DO JSON DA CONSULTA  (2.3.0)
@@ -1931,6 +1954,7 @@ module.exports = {
      Uma decisao que nenhum teste consegue chamar e uma decisao que ninguem
      conferiu. */
   baixaAudioDireto, audioDoJson, argsCabecalho, leProgressoFf,
+  providers,
   atualizaMotor, versaoDoMotor, pastaDoUsuario,
   fichaDosBinarios, argsMotorJS, ambiente,
   achaYt, achaYtJa, escolheYt, esqueceEscolhaYt, mediraDepois,
