@@ -5,9 +5,20 @@ const fs = require("fs");
 const path = require("path");
 const { isSignedMediaUrl } = require("./providers");
 
+function normalizeSourceUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    url.hash = "";
+    url.searchParams.sort();
+    return url.href;
+  } catch (_) {
+    return String(value || "");
+  }
+}
+
 function cacheKey({ provider = "", sourceUrl = "", format = "" } = {}) {
   return crypto.createHash("sha256")
-    .update([provider, sourceUrl, format].map(String).join("\n"))
+    .update([provider, normalizeSourceUrl(sourceUrl), format].map(String).join("\n"))
     .digest("hex");
 }
 
@@ -54,4 +65,4 @@ class MetadataCache {
   }
 }
 
-module.exports = { MetadataCache, cacheKey, sanitizeMetadata };
+module.exports = { MetadataCache, cacheKey, normalizeSourceUrl, sanitizeMetadata };

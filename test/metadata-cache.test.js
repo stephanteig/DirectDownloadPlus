@@ -4,13 +4,15 @@ const assert = require("assert");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { MetadataCache, cacheKey } = require("../js/metadata-cache");
+const { MetadataCache, cacheKey, normalizeSourceUrl } = require("../js/metadata-cache");
 
 const directory = fs.mkdtempSync(path.join(os.tmpdir(), "ddp-cache-"));
 try {
   const cache = new MetadataCache(directory, { ttlMs: 100 });
   const request = { provider: "yt-dlp", sourceUrl: "https://instagram.com/reel/1", format: "video" };
   assert.strictEqual(cacheKey(request).length, 64);
+  assert.strictEqual(normalizeSourceUrl("https://example.com/x?b=2&a=1#fragment"), "https://example.com/x?a=1&b=2");
+  assert.strictEqual(cacheKey(request), cacheKey({ provider: "yt-dlp", sourceUrl: "https://instagram.com/reel/1#player", format: "video" }));
   assert.strictEqual(cache.get(request).hit, false);
   cache.set(request, { provider: "yt-dlp", title: "Reel", sourceUrl: "https://v16.cdninstagram.com/x.mp4?sig=abc", formats: [{ url: "https://cdninstagram.com/x?oe=1" }] }, 1000);
   const hit = cache.get(request, 1050);
